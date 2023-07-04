@@ -112,4 +112,10 @@ to somewhat simulate traditional MVC behaviour and perform all the execution in 
 This may be useful for comparison purposes:
   - `DirectExecutorService` provides neither deferred execution nor concurrency.
   - `LazyDirectExecutorService`, provides deferred execution but not concurrency.
-  - `Executors` provides instances of `ExecutorService` providing both deferred execution and concurrency.
+  - `Executors` provides instances of `ExecutorService` providing both deferred execution and concurrency. 
+
+### Troubleshooting
+
+HTTP streaming may not work if your servers are configured incorrectly. For notes on buffering and Nagle's algorithm see:
+https://medium.com/airbnb-engineering/improving-performance-with-http-streaming-ba9e72c66408 
+
