@@ -114,8 +114,9 @@ This may be useful for comparison purposes:
   - `LazyDirectExecutorService`, provides deferred execution but not concurrency.
   - `Executors` provides instances of `ExecutorService` providing both deferred execution and concurrency. 
 
-### Troubleshooting
+### Warnings and Troubleshooting
 
-HTTP streaming may not work if your servers are configured incorrectly. For notes on buffering and Nagle's algorithm see:
-https://medium.com/airbnb-engineering/improving-performance-with-http-streaming-ba9e72c66408 
-
+- HTTP streaming may not work if your servers are configured incorrectly. For notes on buffering and Nagle's algorithm see:
+https://medium.com/airbnb-engineering/improving-performance-with-http-streaming-ba9e72c66408
+- Any increase of concurrency in your application may lead to increased demand for database connections.
+  Make sure that your connection pooling and database are tuned accordingly.
