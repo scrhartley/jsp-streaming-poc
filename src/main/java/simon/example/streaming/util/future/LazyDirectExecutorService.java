@@ -10,9 +10,8 @@ import java.util.concurrent.locks.ReentrantLock;
 // Using this ExecutorService allows deferring execution of a task without introducing concurrency.
 public class LazyDirectExecutorService extends AbstractExecutorService {
 
-    private volatile boolean shutdown;
-    private volatile boolean taskRunning;
-    private volatile boolean terminated;
+    private boolean shutdown;
+    private int runningTasks;
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
 
@@ -41,7 +40,7 @@ public class LazyDirectExecutorService extends AbstractExecutorService {
             if (shutdown) {
                 throw new RejectedExecutionException();
             }
-            taskRunning = true;
+            runningTasks++;
         } finally {
             lock.unlock();
         }
@@ -51,9 +50,8 @@ public class LazyDirectExecutorService extends AbstractExecutorService {
         } finally {
             lock.lock();
             try {
-                taskRunning = false;
-                if (shutdown) {
-                    terminated = true;
+                int numRunning = --runningTasks;
+                if (numRunning == 0) {
                     condition.signalAll();
                 }
             } finally {
@@ -65,11 +63,12 @@ public class LazyDirectExecutorService extends AbstractExecutorService {
 
     @Override
     public void shutdown() {
-        shutdown = true;
-
         lock.lock();
         try {
-            terminated = !taskRunning;
+            shutdown = true;
+            if (runningTasks == 0) {
+                condition.signalAll();
+            }
         } finally {
             lock.unlock();
         }
@@ -83,23 +82,40 @@ public class LazyDirectExecutorService extends AbstractExecutorService {
 
     @Override
     public boolean isShutdown() {
-        return shutdown;
+        lock.lock();
+        try {
+            return shutdown;
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public boolean isTerminated() {
-        return terminated;
+        lock.lock();
+        try {
+            return shutdown && runningTasks == 0;
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        long nanos = unit.toNanos(timeout);
         lock.lock();
         try {
-            if (terminated) {
-                return true;
+            while (true) {
+                if (shutdown && runningTasks == 0) {
+                    return true;
+                } else if (nanos <= 0) {
+                    return false;
+                } else {
+                    long now = System.nanoTime();
+                    condition.awaitNanos(nanos);
+                    nanos -= System.nanoTime() - now; // subtract the actual time we waited
+                }
             }
-            condition.await(timeout, unit);
-            return terminated;
         } finally {
             lock.unlock();
         }
