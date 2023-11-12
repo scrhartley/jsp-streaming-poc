@@ -1,4 +1,4 @@
-package simon.example.streaming.util.future;
+package example.streaming.util.future;
 
 import java.util.List;
 import java.util.Objects;

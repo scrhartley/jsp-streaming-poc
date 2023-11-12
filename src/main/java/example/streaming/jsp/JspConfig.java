@@ -1,4 +1,4 @@
-package simon.example.streaming.jsp;
+package example.streaming.jsp;
 
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
 import org.springframework.context.annotation.Bean;

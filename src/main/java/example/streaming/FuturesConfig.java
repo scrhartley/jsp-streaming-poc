@@ -1,8 +1,8 @@
-package simon.example.streaming;
+package example.streaming;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import simon.example.streaming.util.future.LazyDirectExecutorService;
+import example.streaming.util.future.LazyDirectExecutorService;
 
 import java.util.concurrent.ExecutorService;
 

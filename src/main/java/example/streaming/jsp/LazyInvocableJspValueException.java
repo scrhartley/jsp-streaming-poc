@@ -1,4 +1,4 @@
-package simon.example.streaming.jsp;
+package example.streaming.jsp;
 
 import javax.el.ELException;
 
