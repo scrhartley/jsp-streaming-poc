@@ -108,12 +108,10 @@ public class LazyDirectExecutorService extends AbstractExecutorService {
             while (true) {
                 if (shutdown && runningTasks == 0) {
                     return true;
-                } else if (nanos <= 0) {
+                } else if (nanos <= 0L) {
                     return false;
                 } else {
-                    long now = System.nanoTime();
-                    condition.awaitNanos(nanos);
-                    nanos -= System.nanoTime() - now; // subtract the actual time we waited
+                    nanos = condition.awaitNanos(nanos);
                 }
             }
         } finally {
