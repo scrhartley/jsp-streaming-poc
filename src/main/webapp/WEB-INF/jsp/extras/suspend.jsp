@@ -5,7 +5,7 @@
     Loading (with manually passed fallback) ...
 </c:set>
 
-<c:set var="sharedSuspenseFallback" scope="request">
+<c:set var="sharedSuspendFallback" scope="request">
     Loading (with request scope implicit fallback) ...
 </c:set>
 
@@ -17,24 +17,24 @@
 	<body>
 
 	    <ul>
-            <li> <div>My page using suspense tag!</div> </li>
+            <li> <div>My page using suspend tag!</div> </li>
 
             <li>
-                <tag:suspense> <div>${myData1}</div> </tag:suspense>
+                <tag:suspend> <div>${myData1}</div> </tag:suspend>
             </li>
             <li>
-                <tag:suspense fallback="${myLoadingFallback}"> <div>${myData2}</div> </tag:suspense>
+                <tag:suspend fallback="${myLoadingFallback}"> <div>${myData2}</div> </tag:suspend>
             </li>
             <li>
-                <tag:suspense fallback="Loading (with HTML string fallback) ..."> <div>${myData3}</div> </tag:suspense>
+                <tag:suspend fallback="Loading (with HTML string fallback) ..."> <div>${myData3}</div> </tag:suspend>
             </li>
             <li>
-                <tag:suspense>
+                <tag:suspend>
                     <jsp:attribute name="fallbackFragment">
                         Loading (with fragment fallback) ...
                     </jsp:attribute>
                     <jsp:body> <div>${myData4}</div> </jsp:body>
-                </tag:suspense>
+                </tag:suspend>
             </li>
         </ul>
 

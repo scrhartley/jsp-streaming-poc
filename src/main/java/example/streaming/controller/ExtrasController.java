@@ -35,15 +35,15 @@ public class ExtrasController {
         return "extras/error_boundaries";
     }
 
-    @GetMapping("/suspense")
-    public String suspense(Model model) {
+    @GetMapping("/suspend")
+    public String suspend(Model model) {
         for (int i = 1; i <= 4; i++) {
             model.addAttribute("myData" + i, new LazyTask<>( () -> {
                 Thread.sleep(2_500);
                 return "Work done";
             }));
         }
-        return "extras/suspense";
+        return "extras/suspend";
     }
 
 }
