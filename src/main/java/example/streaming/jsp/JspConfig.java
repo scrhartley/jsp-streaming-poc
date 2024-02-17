@@ -16,12 +16,12 @@ import javax.servlet.jsp.JspException;
 import java.io.PrintWriter;
 import java.util.Map;
 
-// Exists to handle LazyInvocableJspValueException.
+// Originally added to handle LazyInvocableJspValueException.
 @Configuration
 public class JspConfig {
 
     // Note: Error path should prevent caching to avoid being cached as the content of the requested page.
-    private static String ERROR_PATH = "/error/500.html";
+    private static final String ERROR_PATH = "/error/500.html";
 
     @Bean
     public InternalResourceViewResolver defaultViewResolver(WebMvcProperties mvcProperties) {
@@ -39,6 +39,27 @@ public class JspConfig {
 
 
     private static void handleException(Exception e, HttpServletResponse response) throws Exception {
+        e = tryUnwrapLazyValueException(e);
+
+        // If we're allowing flushes in order to support streaming, we
+        // have to assume that a flush may already have happened even if
+        // this particular exception is not directly related to that
+        // (so always use our stream exception handling mechanism).
+        try {
+            PrintWriter out = response.getWriter();
+            out.print(String.format("<meta http-equiv=\"refresh\" content=\"0; url=%s\">", ERROR_PATH));
+            // Close the stream so that the browser thinks it should act upon the redirect,
+            // rather than just log an incomplete stream error in the console.
+            out.close();
+        }
+        catch (Exception ex) {
+            e.addSuppressed(ex);
+        }
+
+        throw e;
+    }
+
+    private static Exception tryUnwrapLazyValueException(Exception e) {
         if (e.getCause() instanceof LazyInvocableJspValueException) {
             e = (Exception) e.getCause();
         }
@@ -50,19 +71,8 @@ public class JspConfig {
             if (e.getCause() instanceof Exception) {
                 e = (Exception) e.getCause();
             }
-            handleLazyPageError(response);
         }
-        throw e;
-    }
-    private static void handleLazyPageError(HttpServletResponse response) {
-        try {
-            PrintWriter out = response.getWriter();
-            out.print(String.format("<meta http-equiv=\"refresh\" content=\"0; url=%s\">", ERROR_PATH));
-            // Close the stream so that the browser thinks it should act upon the redirect,
-            // rather than just log the incomplete stream error in the console.
-            out.close();
-        }
-        catch (Exception e) { } // Throw original exception, not this.
+        return e;
     }
 
 
