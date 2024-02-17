@@ -1,5 +1,7 @@
 package example.streaming.jsp;
 
+import static example.streaming.jsp.StreamingJspExceptionHandler.*;
+
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +24,7 @@ public class JspConfig {
 
     // Note: Error path should prevent caching to avoid being cached as the content of the requested page.
     private static final String ERROR_PATH = "/error/500.html";
+    private static final StreamingJspExceptionHandler STREAMING_EXCEPTION_HANDLER = ExceptionHandlers.META_REDIRECT;
 
     @Bean
     public InternalResourceViewResolver defaultViewResolver(WebMvcProperties mvcProperties) {
@@ -47,9 +50,9 @@ public class JspConfig {
         // (so always use our stream exception handling mechanism).
         try {
             PrintWriter out = response.getWriter();
-            out.print(String.format("<meta http-equiv=\"refresh\" content=\"0; url=%s\">", ERROR_PATH));
-            // Close the stream so that the browser thinks it should act upon the redirect,
-            // rather than just log an incomplete stream error in the console.
+            STREAMING_EXCEPTION_HANDLER.writeErrorHtml(out, e);
+            // Close the stream so the browser will act upon a meta refresh
+            // redirect and not log an incomplete stream error in the console.
             out.close();
         }
         catch (Exception ex) {
@@ -97,6 +100,12 @@ public class JspConfig {
                 handleException(e, response);
             }
         }
+    }
+
+
+    private interface ExceptionHandlers {
+        StreamingJspExceptionHandler META_REDIRECT = new MetaRedirectHandler(ERROR_PATH);
+        StreamingJspExceptionHandler HTML_DEBUG    = new HtmlDebugHandler(); // For dev
     }
 
 }
