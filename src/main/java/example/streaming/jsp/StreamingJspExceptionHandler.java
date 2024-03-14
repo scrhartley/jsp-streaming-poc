@@ -66,7 +66,7 @@ interface StreamingJspExceptionHandler {
             // Clear page so there's only the error message.
             pw.write(
                     "<script>(self => setTimeout(() =>\n" +
-                        "(document.body.innerHTML = self.previousElementSibling.outerHTML)\n" +
+                        "document.body.innerHTML = self.previousElementSibling.outerHTML\n" +
                     "))(document.currentScript);</script>");
         }
 
