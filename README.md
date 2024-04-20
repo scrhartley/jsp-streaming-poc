@@ -61,27 +61,37 @@ These types of execution contrast with the standard MVC pattern of assembling al
 
 ### Additional tags
 
-- `/atoms` ***Atom directive***  
-  If you're unhappy about where auto-flushing occurs, then this can be refined using the atom directive.  
+- `/atoms` ***Atom tag***  
+  If you're unhappy about where auto-flushing occurs, then this can be refined using the atom tag.  
   This example is a refinement of the behaviour in the `/load/streaming` endpoint (and it's template).
 
 
-- `/error-boundaries` ***Error boundary directive***  
+- `/error-boundaries` ***Error boundary tag***  
   An alternative to JSP's catch JSTL tag, providing a more declarative and flexible way
   to show fallback content for a part of the page when an error occurs.  
   Inspiration: https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
 
 
-- `/suspend` ***Suspend directive***  
+- `/suspend` ***Suspend tag***  
   Builds upon atom to show a loading indicator until its content is complete.
   If JavaScript is not available, then the loading indicator/fallback will not be shown.
-  Perhaps this directive is less useful when using concurrency, since it can only show one
+  Perhaps this tag is less useful when using concurrency, since it can only show one
   loading indicator at a time and other pending data may complete at roughly the same time.
   For this reason it is not called suspense and a proper out-of-order version
   may not be feasible with JSP.  
   If you wish to use suspend and error boundary together then, unlike React,
   the error boundary should be inside the suspend and not the other way round.  
   Inspiration: https://react.dev/reference/react/Suspense
+
+
+- `/deferred` ***Deferred and trigger deferred tags (EXPERIMENTAL)***  
+  Deferred allows multiple loading indicators by queuing the evaluation of content until triggerDeferred is invoked.  
+  This pair of tags requires JavaScript to work. The triggerDeferred tag processes
+  the queued content in order and so slower deferred content can hold up quicker deferredContent.
+  The context of each deferred is not retained and so while each fallback will work as expected,
+  its queued body will have the context of where the triggerDeferred was invoked,
+  as if the deferred body's content was defined at the location of the triggerDeferred.  
+  Both deferred and triggerDeferred are implemented as custom Java tags.
 
 
 ## Notes

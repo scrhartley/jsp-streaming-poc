@@ -46,4 +46,15 @@ public class ExtrasController {
         return "extras/suspend";
     }
 
+    @GetMapping("/deferred")
+    public String deferred(Model model) {
+        for (int i = 1; i <= 6; i++) {
+            model.addAttribute("myData" + i, new LazyTask<>( () -> {
+                Thread.sleep(2_500);
+                return "Work done";
+            }));
+        }
+        return "extras/deferred";
+    }
+
 }
