@@ -66,7 +66,7 @@ public class JspConfig {
         if (e.getCause() instanceof LazyInvocableJspValueException) {
             e = (Exception) e.getCause();
         }
-        else if (e instanceof ServletException && e.getCause() instanceof JspException
+        else if (e instanceof ServletException && e.getCause() != null
                 && e.getCause().getCause() instanceof LazyInvocableJspValueException) {
             e = (Exception) e.getCause().getCause();
         }
