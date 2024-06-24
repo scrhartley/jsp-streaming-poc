@@ -19,17 +19,17 @@ public class LazyDirectExecutorService extends AbstractExecutorService {
     @Override
     public <T> Future<T> submit(Callable<T> task) {
         Objects.requireNonNull(task);
-        return new LazyTask(task);
+        return new LazyTask<>(task);
     }
     @Override
     public Future<?> submit(Runnable task) {
         Objects.requireNonNull(task);
-        return new LazyTask(task, null);
+        return new LazyTask<>(task, null);
     }
     @Override
     public <T> Future<T> submit(Runnable task, T result) {
         Objects.requireNonNull(task);
-        return new LazyTask(task, result);
+        return new LazyTask<>(task, result);
     }
 
 
