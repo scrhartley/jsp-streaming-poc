@@ -52,8 +52,8 @@ class FutureELResolver extends TypeConverter {
 
     private static boolean shouldAutoFlush(JspContext jspContext) {
         // This is a hack for demo purposes to easily disable auto-flushing from the template.
-        Object override = jspContext.getAttribute("AUTO_FLUSH");
-        return (override instanceof Boolean) ? (boolean) override : true;
+        Boolean override = (Boolean) jspContext.getAttribute("AUTO_FLUSH");
+        return (override != null) ? override : true;
     }
 
 }
