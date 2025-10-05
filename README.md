@@ -118,13 +118,17 @@ public static <T> CompletableFuture<T> failedFuture(Throwable ex) {
 
 ### Easter eggs
 
-- While `LazyDirectExecutorService` avoids managing threads (providing deferred execution but giving up concurrency),
-it should also be possible to use something like Guava's [DirectExecutorService](https://guava.dev/releases/snapshot-jre/api/docs/com/google/common/util/concurrent/MoreExecutors.html#newDirectExecutorService())
+- `AsyncModel` extends the Spring `Model` interface and streamlines adding a `Future` to a model,
+which would otherwise require injecting an `ExecutorService` into every controller that wished to do so.
+
+- While the provided `LazyDirectExecutorService` already avoids threads (providing deferred execution but giving up 
+concurrency), it should also be possible to use something like Guava's [DirectExecutorService](https://guava.dev/releases/snapshot-jre/api/docs/com/google/common/util/concurrent/MoreExecutors.html#newDirectExecutorService())
 to somewhat simulate traditional MVC behaviour and perform all the execution in the controller. 
 This may be useful for comparison purposes:
   - `DirectExecutorService` provides neither deferred execution nor concurrency.
   - `LazyDirectExecutorService`, provides deferred execution but not concurrency.
-  - `Executors` provides instances of `ExecutorService` providing both deferred execution and concurrency. 
+  - `Executors` offers instances of `ExecutorService` providing both deferred execution and concurrency. 
+
 
 ### Warnings and Troubleshooting
 
