@@ -87,7 +87,7 @@ These types of execution contrast with the standard MVC pattern of assembling al
 - `/deferred` ***Deferred and trigger deferred tags (EXPERIMENTAL)***  
   Deferred allows multiple loading indicators by queuing the evaluation of content until triggerDeferred is invoked.  
   This pair of tags requires JavaScript to work. The triggerDeferred tag processes
-  the queued content in order and so slower deferred content can hold up quicker deferredContent.
+  the queued content in order and so slower deferred content can hold up quicker deferred content.
   The context of each deferred is not retained and so while each fallback will work as expected,
   its queued body will have the context of where the triggerDeferred was invoked,
   as if the deferred body's content was defined at the location of the triggerDeferred.  
