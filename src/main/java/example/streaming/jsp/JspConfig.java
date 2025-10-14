@@ -14,7 +14,6 @@ import org.springframework.web.servlet.view.JstlView;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.jsp.JspException;
 import java.io.PrintWriter;
 import java.util.Map;
 
