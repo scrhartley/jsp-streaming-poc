@@ -1,15 +1,33 @@
 package example.streaming.jsp;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import javax.el.ELContext;
 import javax.el.ELException;
 import javax.el.TypeConverter;
 import javax.servlet.jsp.JspContext;
 import javax.servlet.jsp.JspWriter;
 import javax.servlet.jsp.tagext.BodyContent;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 class FutureELResolver extends TypeConverter {
+
+    // Prevents waiting forever and should be longer than any actual request.
+    private static final int DEFAULT_TIMEOUT_SECONDS = 60 * 10;
+
+    private final long timeoutSeconds;
+
+    FutureELResolver() {
+        this(DEFAULT_TIMEOUT_SECONDS);
+    }
+    FutureELResolver(int timeoutSeconds) {
+        this.timeoutSeconds = timeoutSeconds;
+        if (timeoutSeconds <= 0) {
+            throw new IllegalArgumentException("Timeout must be positive");
+        }
+    }
 
     @Override
     public Object convertToType(ELContext elContext, Object obj, Class<?> type) {
@@ -29,13 +47,13 @@ class FutureELResolver extends TypeConverter {
             }
 
             try {
-                return ((Future<?>) obj).get();
+                return ((Future<?>) obj).get(timeoutSeconds, TimeUnit.SECONDS);
             } catch (ExecutionException e) {
                 handleException(e.getCause());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 handleException(e);
-            } catch (RuntimeException e) {
+            } catch (TimeoutException | RuntimeException e) {
                 handleException(e);
             }
         }

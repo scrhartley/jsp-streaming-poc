@@ -1,6 +1,7 @@
 package example.streaming.jsp;
 
 import static example.streaming.jsp.StreamingJspExceptionHandler.*;
+import static java.util.Collections.*;
 
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +16,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 // Originally added to handle LazyInvocableJspValueException.
 @Configuration
@@ -23,7 +27,8 @@ public class JspConfig {
 
     // Note: Error path should prevent caching to avoid being cached as the content of the requested page.
     private static final String ERROR_PATH = "/error/500.html";
-    private static final StreamingJspExceptionHandler STREAMING_EXCEPTION_HANDLER = ExceptionHandlers.META_REDIRECT;
+    private static final StreamingJspExceptionHandler STREAMING_EXCEPTION_HANDLER = ExceptionHandlers.HTML_DEBUG;
+    private static boolean CANCEL_UNCOMPLETED_FUTURES = true; // Intended to avoid leaving stuck threads.
 
     @Bean
     public InternalResourceViewResolver defaultViewResolver(WebMvcProperties mvcProperties) {
@@ -82,10 +87,15 @@ public class JspConfig {
         @Override
         public void render(@Nullable Map<String, ?> model, HttpServletRequest request,
                            HttpServletResponse response) throws Exception {
+            List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
                 super.render(model, request, response);
             } catch (Exception e) {
                 handleException(e, response);
+            } finally {
+                for (Future<?> future : futures) {
+                    future.cancel(true);
+                }
             }
         }
     }
@@ -93,12 +103,26 @@ public class JspConfig {
         @Override
         public void render(@Nullable Map<String, ?> model, HttpServletRequest request,
                            HttpServletResponse response) throws Exception {
+            List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
                 super.render(model, request, response);
             } catch (Exception e) {
                 handleException(e, response);
+            } finally {
+                for (Future<?> future : futures) {
+                    future.cancel(true);
+                }
             }
         }
+    }
+
+    private static List<Future<?>> getFutures(@Nullable Map<String, ?> model) {
+        return (model == null || model.isEmpty())
+                ? emptyList()
+                : model.values().stream()
+                        .filter(Future.class::isInstance)
+                        .<Future<?>>map(Future.class::cast)
+                        .collect(Collectors.toList());
     }
 
 
