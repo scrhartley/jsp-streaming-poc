@@ -1,4 +1,4 @@
-package example.streaming.config;
+package example.streaming.config.mvc;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
@@ -31,22 +30,14 @@ public class AsyncModelConfig {
 
     @Configuration
     public static class WebConfig implements WebMvcConfigurer {
-        @Autowired
-        ExecutorService blockingExecutorService;
-
         @Override
         public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
-            argumentResolvers.add(new AsyncModelArgumentResolver(blockingExecutorService));
+            argumentResolvers.add(new AsyncModelArgumentResolver());
         }
     }
 
 
     private static class AsyncModelArgumentResolver implements HandlerMethodArgumentResolver {
-        private final ExecutorService executorService;
-
-        private AsyncModelArgumentResolver(ExecutorService executorService) {
-            this.executorService = executorService;
-        }
 
         @Override
         public boolean supportsParameter(MethodParameter parameter) {
@@ -60,10 +51,11 @@ public class AsyncModelConfig {
             Object model = mavContainer.getModel();
             if (model == mavContainer.getDefaultModel()) { // Not redirect
                 Assert.isInstanceOf(Model.class, model);
-                model = new ExecutorAsyncModel((Model) model, executorService);
+                model = new UpgradeableFutureAsyncModel((Model) model);
             }
             return model;
         }
+
     }
 
 
@@ -100,17 +92,14 @@ public class AsyncModelConfig {
     }
 
 
-    private static class ExecutorAsyncModel extends WrappingModel implements AsyncModel {
-        private final ExecutorService executorService;
-
-        private ExecutorAsyncModel(Model model, ExecutorService executorService) {
+    private static class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
+        private UpgradeableFutureAsyncModel(Model model) {
             super(model);
-            this.executorService = executorService;
         }
 
         @Override
         public <T> Future<T> addAttribute(String attributeName, Callable<T> callable) {
-            Future<T> future = executorService.submit(callable);
+            Future<T> future = new UpgradeableFuture<>(callable);
             super.addAttribute(attributeName, future);
             return future;
         }

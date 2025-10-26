@@ -3,6 +3,7 @@ package example.streaming.config.jsp;
 import static example.streaming.config.jsp.StreamingJspExceptionHandler.*;
 import static java.util.Collections.*;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,8 +19,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+
+import example.streaming.config.mvc.FutureUpgrader;
 
 // Originally added to handle LazyInvocableJspValueException.
 @Configuration
@@ -29,14 +33,19 @@ public class JspConfig {
     private static final String ERROR_PATH = "/error/500.html";
     private static final StreamingJspExceptionHandler STREAMING_EXCEPTION_HANDLER = ExceptionHandlers.HTML_DEBUG;
     private static boolean CANCEL_UNCOMPLETED_FUTURES = true; // Intended to avoid leaving stuck threads.
+    // Prevents waiting forever and should be longer than any actual request.
+    private static final int DEFAULT_TIMEOUT_SECONDS = 60 * 10;
 
     @Bean
-    public InternalResourceViewResolver defaultViewResolver(WebMvcProperties mvcProperties) {
+    public InternalResourceViewResolver defaultViewResolver(
+            WebMvcProperties mvcProperties, @Autowired(required = false) ExecutorService executorService) {
+        FutureUpgrader futureUpgrader = executorService == null ? null
+                : new FutureUpgrader(executorService, DEFAULT_TIMEOUT_SECONDS); // For AsyncModel
         InternalResourceViewResolver resolver = new InternalResourceViewResolver() {
             @Override
             protected AbstractUrlBasedView instantiateView() {
-                return (getViewClass() == InternalResourceView.class ? new EnhancedInternalResourceView() :
-                        (getViewClass() == JstlView.class ? new EnhancedJstlView() : super.instantiateView()));
+                return getViewClass() == InternalResourceView.class ? new EnhancedInternalResourceView(futureUpgrader) :
+                        (getViewClass() == JstlView.class ? new EnhancedJstlView(futureUpgrader) : super.instantiateView());
             }
         };
         resolver.setPrefix(mvcProperties.getView().getPrefix());
@@ -84,11 +93,17 @@ public class JspConfig {
 
 
     private static class EnhancedJstlView extends JstlView {
+        private final FutureUpgrader futureUpgrader;
+        EnhancedJstlView(FutureUpgrader futureUpgrader) {
+            this.futureUpgrader = futureUpgrader;
+        }
+
         @Override
         public void render(@Nullable Map<String, ?> model, HttpServletRequest request,
                            HttpServletResponse response) throws Exception {
             List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
+                if (futureUpgrader != null) futureUpgrader.upgradeFutures(model);
                 super.render(model, request, response);
             } catch (Exception e) {
                 handleException(e, response);
@@ -100,11 +115,17 @@ public class JspConfig {
         }
     }
     private static class EnhancedInternalResourceView extends InternalResourceView {
+        private final FutureUpgrader futureUpgrader;
+        EnhancedInternalResourceView(FutureUpgrader futureUpgrader) {
+            this.futureUpgrader = futureUpgrader;
+        }
+
         @Override
         public void render(@Nullable Map<String, ?> model, HttpServletRequest request,
                            HttpServletResponse response) throws Exception {
             List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
+                if (futureUpgrader != null) futureUpgrader.upgradeFutures(model);
                 super.render(model, request, response);
             } catch (Exception e) {
                 handleException(e, response);
