@@ -1,4 +1,4 @@
-package example.streaming.jsp;
+package example.streaming.config.jsp;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;

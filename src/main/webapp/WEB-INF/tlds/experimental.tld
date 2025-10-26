@@ -12,7 +12,7 @@
     <tag>
         <description>This tag is for deferring content</description>
         <name>deferred</name>
-        <tag-class>example.streaming.jsp.tag.DeferredTag</tag-class>
+        <tag-class>example.streaming.config.jsp.tag.DeferredTag</tag-class>
         <body-content>scriptless</body-content>
         <attribute>
             <name>fallback</name>
@@ -30,7 +30,7 @@
     <tag>
         <description>This tag is for triggering deferring content</description>
         <name>triggerDeferred</name>
-        <tag-class>example.streaming.jsp.tag.TriggerDeferredTag</tag-class>
+        <tag-class>example.streaming.config.jsp.tag.TriggerDeferredTag</tag-class>
         <body-content>empty</body-content>
     </tag>
 

@@ -1,4 +1,4 @@
-package example.streaming.jsp;
+package example.streaming.config.jsp;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

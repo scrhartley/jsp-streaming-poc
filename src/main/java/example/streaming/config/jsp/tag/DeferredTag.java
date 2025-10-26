@@ -1,4 +1,4 @@
-package example.streaming.jsp.tag;
+package example.streaming.config.jsp.tag;
 
 import java.io.IOException;
 import java.io.StringWriter;

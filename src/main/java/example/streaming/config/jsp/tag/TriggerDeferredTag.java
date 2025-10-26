@@ -1,6 +1,6 @@
-package example.streaming.jsp.tag;
+package example.streaming.config.jsp.tag;
 
-import static example.streaming.jsp.tag.DeferredTag.*;
+import static example.streaming.config.jsp.tag.DeferredTag.*;
 import static org.w3c.dom.Node.*;
 
 import java.io.IOException;

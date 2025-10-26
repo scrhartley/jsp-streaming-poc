@@ -1,4 +1,4 @@
-package example.streaming.jsp;
+package example.streaming.config.jsp;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;

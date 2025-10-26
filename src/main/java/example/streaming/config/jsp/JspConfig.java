@@ -1,6 +1,6 @@
-package example.streaming.jsp;
+package example.streaming.config.jsp;
 
-import static example.streaming.jsp.StreamingJspExceptionHandler.*;
+import static example.streaming.config.jsp.StreamingJspExceptionHandler.*;
 import static java.util.Collections.*;
 
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
