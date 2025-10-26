@@ -17,13 +17,14 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 
 import example.streaming.config.mvc.FutureUpgrader;
+import example.streaming.config.mvc.UpgradableFutureCollection;
 
 // Originally added to handle LazyInvocableJspValueException.
 @Configuration
@@ -138,12 +139,19 @@ public class JspConfig {
     }
 
     private static List<Future<?>> getFutures(@Nullable Map<String, ?> model) {
-        return (model == null || model.isEmpty())
-                ? emptyList()
-                : model.values().stream()
-                        .filter(Future.class::isInstance)
-                        .<Future<?>>map(Future.class::cast)
-                        .collect(Collectors.toList());
+        if (model == null || model.isEmpty()) {
+            return emptyList();
+        }
+
+        List<Future<?>> futures = new ArrayList<>();
+        for (Object value : model.values()) {
+            if (value instanceof Future) {
+                futures.add((Future<?>) value);
+            } else if (value instanceof UpgradableFutureCollection) {
+                futures.addAll(((UpgradableFutureCollection<?>) value).getFuturesPreUpgrade());
+            }
+        }
+        return futures;
     }
 
 

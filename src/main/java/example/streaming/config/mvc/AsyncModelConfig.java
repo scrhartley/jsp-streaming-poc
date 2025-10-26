@@ -103,6 +103,12 @@ public class AsyncModelConfig {
             super.addAttribute(attributeName, future);
             return future;
         }
+
+        @Override
+        public <T> void addUnordered(String attributeName, Callable<T>[] callables) {
+            Collection<Future<T>> futures = new UpgradableFutureCollection<>(callables);
+            super.addAttribute(attributeName, futures);
+        }
     }
 
     private static class WrappingModel implements Model {

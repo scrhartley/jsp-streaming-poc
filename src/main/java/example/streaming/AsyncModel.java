@@ -9,5 +9,7 @@ public interface AsyncModel extends Model {
 
     <T> Future<T> addAttribute(String attributeName, Callable<T> attributeValue);
 
+    <T> void addUnordered(String attributeName, Callable<T>... callables);
+
 }
 
