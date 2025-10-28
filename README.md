@@ -74,11 +74,13 @@ These types of execution contrast with the standard MVC pattern of assembling al
 
 - `/suspend` ***Suspend tag***  
   Builds upon atom to show a loading indicator until its content is complete.
-  If JavaScript is not available, then the loading indicator/fallback will not be shown.
   Perhaps this tag is less useful when using concurrency, since it can only show one
   loading indicator at a time and other pending data may complete at roughly the same time.
   For this reason it is not called suspense and a proper out-of-order version
   may not be feasible with JSP.  
+  Two alternative implementations are included: one using JavaScript and one using [Declarative Shadow DOM](https://web.dev/articles/declarative-shadow-dom).
+  If a required feature is not available (JavaScript being enabled and browser support for Declarative Shadow DOM, respectively),
+  then the loading indicator/fallback will not be shown.  
   If you wish to use suspend and error boundary together then, unlike React,
   the error boundary should be inside the suspend and not the other way round.  
   Inspiration: https://react.dev/reference/react/Suspense
