@@ -17,12 +17,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class UpgradableFutureCollection<T> extends AbstractCollection<Future<T>> {
+public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>> {
 
     private List<UpgradeableFuture<T>> futures;
     private Collection<Future<T>> upgraded;
 
-    UpgradableFutureCollection(Callable<T>[] callables) {
+    UpgradeableFutureCollection(Callable<T>[] callables) {
         this.futures = Stream.of(callables)
                 .map(UpgradeableFuture::new)
                 .collect(Collectors.toList());

@@ -106,7 +106,7 @@ public class AsyncModelConfig {
 
         @Override
         public <T> void addUnordered(String attributeName, Callable<T>[] callables) {
-            Collection<Future<T>> futures = new UpgradableFutureCollection<>(callables);
+            Collection<Future<T>> futures = new UpgradeableFutureCollection<>(callables);
             super.addAttribute(attributeName, futures);
         }
     }

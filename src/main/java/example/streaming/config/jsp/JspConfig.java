@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import example.streaming.config.mvc.FutureUpgrader;
-import example.streaming.config.mvc.UpgradableFutureCollection;
+import example.streaming.config.mvc.UpgradeableFutureCollection;
 
 // Originally added to handle LazyInvocableJspValueException.
 @Configuration
@@ -147,8 +147,8 @@ public class JspConfig {
         for (Object value : model.values()) {
             if (value instanceof Future) {
                 futures.add((Future<?>) value);
-            } else if (value instanceof UpgradableFutureCollection) {
-                futures.addAll(((UpgradableFutureCollection<?>) value).getFuturesPreUpgrade());
+            } else if (value instanceof UpgradeableFutureCollection) {
+                futures.addAll(((UpgradeableFutureCollection<?>) value).getFuturesPreUpgrade());
             }
         }
         return futures;

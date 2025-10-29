@@ -42,7 +42,7 @@ public class FutureUpgrader {
                 .filter(future -> !future.isDone())
                 .collect(Collectors.toList());
 
-        List<UpgradableFutureCollection<?>> iterables;
+        List<UpgradeableFutureCollection<?>> iterables;
         if (executorService instanceof LazyDirectExecutorService) {
             // A CompletionService doesn't make sense for LazyDirectExecutorService
             // since either the work will be done on submit, or else
@@ -50,8 +50,8 @@ public class FutureUpgrader {
             iterables = Collections.emptyList();
         } else {
             iterables = model.values().stream()
-                    .filter(UpgradableFutureCollection.class::isInstance)
-                    .<UpgradableFutureCollection<?>>map(UpgradableFutureCollection.class::cast)
+                    .filter(UpgradeableFutureCollection.class::isInstance)
+                    .<UpgradeableFutureCollection<?>>map(UpgradeableFutureCollection.class::cast)
                     .filter(it -> it.getFuturesPreUpgrade().stream().anyMatch(future -> !future.isDone()))
                     .collect(Collectors.toList());
         }
@@ -74,7 +74,7 @@ public class FutureUpgrader {
                 upgradeFutures(tasks, readLock);
             }
             if (!iterables.isEmpty()) {
-                for (UpgradableFutureCollection<?> iterable : iterables) {
+                for (UpgradeableFutureCollection<?> iterable : iterables) {
                     upgradeIterable(iterable, readLock);
                 }
             }
@@ -89,7 +89,7 @@ public class FutureUpgrader {
     }
 
 
-    private <T> void upgradeIterable(UpgradableFutureCollection<T> iterable, Lock readLock) {
+    private <T> void upgradeIterable(UpgradeableFutureCollection<T> iterable, Lock readLock) {
         CompletionService<T> ecs = new ExecutorCompletionService<>(executorService);
         Submitter<T> submitter = ecs::submit;
         List<UpgradeableFuture<T>> tasks = iterable.getFuturesPreUpgrade();
