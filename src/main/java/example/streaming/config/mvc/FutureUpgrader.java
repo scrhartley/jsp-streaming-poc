@@ -2,6 +2,7 @@ package example.streaming.config.mvc;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -94,15 +95,41 @@ public class FutureUpgrader {
         Submitter<T> submitter = ecs::submit;
         List<UpgradeableFuture<T>> tasks = iterable.getFuturesPreUpgrade();
 
-        List<Future<T>> completed = new ArrayList<>();
+        List<UpgradeableFuture<T>> completed = new ArrayList<>();
+        Map<Future<T>, UpgradeableFuture<T>> pendingLookup = new HashMap<>();
         for (UpgradeableFuture<T> task : tasks) {
-            boolean submitted = upgradeFuture(task, readLock, submitter);
-            if (!submitted) {
+            Future<T> submitted = upgradeFuture(task, readLock, submitter);
+            if (submitted == null) {
                 completed.add(task);
+            } else {
+                pendingLookup.put(submitted, task);
             }
         }
-        int pendingCount = tasks.size() - completed.size();
-        iterable.setUpgradedFutures(completed, pendingCount, ecs, timeoutSeconds);
+
+        // Can't expose the CompletionService directly, since it doesn't return an UpgradeableFuture.
+        UpgradeableFutureCollection.PendingQueue<T> queue = new UpgradeableFutureCollection.PendingQueue<>() {
+            int remaining = tasks.size() - completed.size();
+
+            @Override
+            public UpgradeableFuture<T> take() {
+                try {
+                    Future<T> future = ecs.poll(timeoutSeconds, TimeUnit.SECONDS);
+                    if (future == null) {
+                        throw new RuntimeException(new TimeoutException());
+                    }
+                    remaining--;
+                    return pendingLookup.get(future);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
+            @Override
+            public int size() {
+                return remaining;
+            }
+        };
+        iterable.setUpgradedFutures(completed, queue);
     }
 
     @SuppressWarnings("unchecked")
@@ -122,11 +149,11 @@ public class FutureUpgrader {
         Future<T> submit(Callable<T> task) throws RejectedExecutionException;
     }
 
-    private <T> boolean upgradeFuture(
+    private <T> Future<T> upgradeFuture(
             UpgradeableFuture<T> task, Lock readLock, Submitter<T> submitter) throws RejectedExecutionException {
         // Extra check in case we are using a same-thread executor
         // and a task has been run by another that depends on it.
-        if (task.isDone()) return false;
+        if (task.isDone()) return null;
 
         Callable<T> callable = task.getCallable();
         Future<T> future = submitter.submit(() -> {
@@ -143,7 +170,7 @@ public class FutureUpgrader {
 
         try {
             task.upgradeFuture(future);
-            return true;
+            return future;
         } catch (RuntimeException e) {
             future.cancel(true);
             throw e;
