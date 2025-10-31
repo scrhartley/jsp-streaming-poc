@@ -1,4 +1,4 @@
-<%@ tag %> <%-- Inspiration: https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary --%>
+<%@ tag trimDirectiveWhitespaces="true" %> <%-- Inspiration: https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary --%>
 <%@ attribute name="fallback" %>
 <%@ attribute name="fallbackFragment" fragment="true" %>
 <%@ taglib prefix="c"   uri="http://java.sun.com/jsp/jstl/core" %>

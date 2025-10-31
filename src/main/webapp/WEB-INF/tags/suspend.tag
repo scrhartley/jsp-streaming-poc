@@ -1,4 +1,4 @@
-<%@ tag %> <%-- Inspiration https://react.dev/reference/react/Suspense --%>
+<%@ tag trimDirectiveWhitespaces="true" %> <%-- Inspiration https://react.dev/reference/react/Suspense --%>
 <%@ attribute name="fallback" %>
 <%@ attribute name="fallbackFragment" fragment="true" %>
 <%@ taglib prefix="c"   uri="http://java.sun.com/jsp/jstl/core" %>
