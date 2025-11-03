@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -67,6 +68,7 @@ public class AsyncModelConfig {
         @Override
         public void afterPropertiesSet() {
             List<HandlerMethodArgumentResolver> resolvers = handlerAdapter.getArgumentResolvers();
+            Objects.requireNonNull(resolvers);
 
             OptionalInt syncIdx = IntStream.range(0, resolvers.size())
                     .filter(i-> resolvers.get(i) instanceof ModelMethodProcessor)
@@ -106,7 +108,7 @@ public class AsyncModelConfig {
 
         @Override
         public <T> void addUnordered(String attributeName, Callable<T>[] callables) {
-            Collection<Future<T>> futures = new UpgradeableFutureCollection<>(callables);
+            Collection<Future<T>> futures = new UpgradeableFutureCollection<>(callables, true);
             super.addAttribute(attributeName, futures);
         }
     }
