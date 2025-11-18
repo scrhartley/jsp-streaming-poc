@@ -12,9 +12,9 @@ import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.JspFragment;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
 
-public class DeferredTag extends SimpleTagSupport {
+public class DeferTag extends SimpleTagSupport {
 
-    private static final String SHARED_FALLBACK_NAME = "sharedDeferredFallback";
+    private static final String SHARED_FALLBACK_NAME = "sharedDeferFallback";
     private static final int SHARED_FALLBACK_SCOPE = PageContext.REQUEST_SCOPE;
     private static final String ID_COUNTER_ATTRIBUTE_KEY = "_}\n$%___DEFERRED_ID___%$\n{_";
     private static final int ID_COUNTER_ATTRIBUTE_SCOPE = PageContext.PAGE_SCOPE;
