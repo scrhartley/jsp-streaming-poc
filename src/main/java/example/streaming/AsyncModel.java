@@ -1,15 +1,19 @@
 package example.streaming;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
 
 import org.springframework.ui.Model;
 
 public interface AsyncModel extends Model {
 
-    <T> Future<T> addAttribute(String attributeName, Callable<T> attributeValue);
+    <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> attributeValue);
 
     <T> void addUnordered(String attributeName, Callable<T>... callables);
+
+
+    interface AsyncValue<T> {
+        T get() throws Exception;
+    }
 
 }
 

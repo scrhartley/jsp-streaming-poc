@@ -20,7 +20,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import example.streaming.config.mvc.FutureUpgrader;
@@ -34,14 +33,10 @@ public class JspConfig {
     private static final String ERROR_PATH = "/error/500.html";
     private static final StreamingJspExceptionHandler STREAMING_EXCEPTION_HANDLER = ExceptionHandlers.HTML_DEBUG;
     private static final boolean CANCEL_UNCOMPLETED_FUTURES = true; // Intended to avoid leaving stuck threads.
-    // Prevents waiting forever and should be longer than any actual request.
-    private static final int DEFAULT_TIMEOUT_SECONDS = 60 * 10;
 
     @Bean
     public InternalResourceViewResolver defaultViewResolver(
-            WebMvcProperties mvcProperties, @Autowired(required = false) ExecutorService executorService) {
-        FutureUpgrader futureUpgrader = executorService == null ? null
-                : new FutureUpgrader(executorService, DEFAULT_TIMEOUT_SECONDS); // For AsyncModel
+            WebMvcProperties mvcProperties, @Autowired(required = false) FutureUpgrader futureUpgrader) {
         InternalResourceViewResolver resolver = new InternalResourceViewResolver() {
             @Override
             protected AbstractUrlBasedView instantiateView() {
