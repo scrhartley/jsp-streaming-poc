@@ -33,7 +33,7 @@ public class JspConfig {
     // Note: Error path should prevent caching to avoid being cached as the content of the requested page.
     private static final String ERROR_PATH = "/error/500.html";
     private static final StreamingJspExceptionHandler STREAMING_EXCEPTION_HANDLER = ExceptionHandlers.HTML_DEBUG;
-    private static boolean CANCEL_UNCOMPLETED_FUTURES = true; // Intended to avoid leaving stuck threads.
+    private static final boolean CANCEL_UNCOMPLETED_FUTURES = true; // Intended to avoid leaving stuck threads.
     // Prevents waiting forever and should be longer than any actual request.
     private static final int DEFAULT_TIMEOUT_SECONDS = 60 * 10;
 
