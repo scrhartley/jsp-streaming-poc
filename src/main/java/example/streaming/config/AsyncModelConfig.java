@@ -6,8 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.springframework.beans.factory.InitializingBean;
@@ -28,6 +30,9 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import example.streaming.AsyncModel;
 
 public class AsyncModelConfig {
+
+    // Prevents waiting forever and should be longer than any actual request.
+    private static final int DEFAULT_TIMEOUT_SECONDS = 10 * 60;
 
     @Configuration
     public static class WebConfig implements WebMvcConfigurer {
@@ -109,10 +114,29 @@ public class AsyncModelConfig {
         }
 
         @Override
-        public <T> Future<T> addAttribute(String attributeName, Callable<T> callable) {
+        public <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> callable) {
             Future<T> future = executorService.submit(callable);
             super.addAttribute(attributeName, future);
-            return future;
+            return asAsyncValue(future);
+        }
+
+        // Allow other passed in callables calling this to catch their
+        // business logic exceptions as if there wasn't a future involved.
+        // For things like InterruptedExceptions and TimeoutException
+        // it won't be obvious they're there, and they can just propagate.
+        // Also ensure that there's always a timeout involved.
+        private static <T> AsyncValue<T> asAsyncValue(Future<T> future) {
+            return () -> {
+                try {
+                    return future.get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                } catch (ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof Exception) {
+                        throw (Exception) cause;
+                    }
+                    throw e;
+                }
+            };
         }
     }
 
