@@ -46,15 +46,15 @@ public class ExtrasController {
         return "extras/suspend";
     }
 
-    @GetMapping("/deferred")
-    public String deferred(AsyncModel model) {
+    @GetMapping("/defer")
+    public String defer(AsyncModel model) {
         for (int i = 1; i <= 6; i++) {
             model.addAttribute("myData" + i, () -> {
                 Thread.sleep(2_500);
                 return "Work done";
             });
         }
-        return "extras/deferred";
+        return "extras/defer";
     }
 
 }

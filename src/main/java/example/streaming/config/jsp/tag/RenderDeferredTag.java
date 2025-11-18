@@ -1,6 +1,6 @@
 package example.streaming.config.jsp.tag;
 
-import static example.streaming.config.jsp.tag.DeferredTag.*;
+import static example.streaming.config.jsp.tag.DeferTag.*;
 import static org.w3c.dom.Node.*;
 
 import java.io.IOException;
@@ -14,7 +14,7 @@ import javax.servlet.jsp.JspWriter;
 import javax.servlet.jsp.tagext.JspFragment;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
 
-public class TriggerDeferredTag extends SimpleTagSupport {
+public class RenderDeferredTag extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {

@@ -86,14 +86,14 @@ These types of execution contrast with the standard MVC pattern of assembling al
   Inspiration: https://react.dev/reference/react/Suspense
 
 
-- `/deferred` ***Deferred and trigger deferred tags (EXPERIMENTAL)***  
-  Deferred allows multiple loading indicators by queuing the evaluation of content until triggerDeferred is invoked.  
-  This pair of tags requires JavaScript to work. The triggerDeferred tag processes
+- `/defer` ***Defer and render deferred tags (EXPERIMENTAL)***  
+  Defer allows multiple loading indicators by queuing the evaluation of content until renderDeferred is invoked.  
+  This pair of tags requires JavaScript to work. The renderDeferred tag processes
   the queued content in order and so slower deferred content can hold up quicker deferred content.
-  The context of each deferred is not retained and so while each fallback will work as expected,
-  its queued body will have the context of where the triggerDeferred was invoked,
-  as if the deferred body's content was defined at the location of the triggerDeferred.  
-  Both deferred and triggerDeferred are implemented as custom Java tags.
+  The context of each defer is not retained and so while each fallback will work as expected,
+  its queued body will have the context of where the renderDeferred was invoked,
+  as if the defer's body content was defined at the location of the renderDeferred.  
+  Both defer and renderDeferred are implemented as custom Java tags.
 
 
 ## Notes

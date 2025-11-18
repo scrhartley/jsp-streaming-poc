@@ -4,7 +4,7 @@
 <c:set var="myLoadingFallback">
     Loading (with manually passed fallback) ...
 </c:set>
-<c:set var="sharedDeferredFallback" scope="request">
+<c:set var="sharedDeferFallback" scope="request">
     Loading (with request scope implicit fallback) ...
 </c:set>
 
@@ -20,47 +20,47 @@
 	</head>
 	<body>
 	    <ul>
-            <li> <div>My page using deferred tag!</div> </li>
+            <li> <div>My page using defer tag!</div> </li>
 
             <li>
-                <tag:deferred> <div>${myData1}</div> </tag:deferred>
+                <tag:defer> <div>${myData1}</div> </tag:defer>
             </li>
             <li>
-                <tag:deferred fallback="${myLoadingFallback}"> <div>${myData2}</div> </tag:deferred>
+                <tag:defer fallback="${myLoadingFallback}"> <div>${myData2}</div> </tag:defer>
             </li>
             <li>
-                <tag:deferred>
+                <tag:defer>
                     <jsp:attribute name="fallbackFragment">
                         Loading (with fragment fallback) ...
                     </jsp:attribute>
                     <jsp:body> <div>${myData3}</div> </jsp:body>
-                </tag:deferred>
+                </tag:defer>
             </li>
 
             <li>
-                <tag:deferred fallback="Loading (with HTML string fallback) ...">
+                <tag:defer fallback="Loading (with HTML string fallback) ...">
                     <div class="box">
 
                         <div>${myData4}</div>
 
                         <div class="box">
-                            <tag:deferred fallback="Loading (nested) ...">
+                            <tag:defer fallback="Loading (nested) ...">
                                 <div>${myData5}</div>
-                            </tag:deferred>
+                            </tag:defer>
 
                             <div class="box">
-                                <tag:deferred fallback="Loading (nested 2) ...">
+                                <tag:defer fallback="Loading (nested 2) ...">
                                     ${myData6}
-                                </tag:deferred>
+                                </tag:defer>
                             </div>
                         </div>
 
                     </div>
-                </tag:deferred>
+                </tag:defer>
             </li>
         </ul>
 
         <div>Page finished!</div>
-        <tag:triggerDeferred />
+        <tag:renderDeferred />
     </body>
 </html>
