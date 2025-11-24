@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -131,7 +132,9 @@ public class AsyncModelConfig {
                     return future.get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 } catch (ExecutionException e) {
                     Throwable cause = e.getCause();
-                    if (cause instanceof Exception) {
+                    if (cause instanceof Exception
+                            && !(cause instanceof InterruptedException)
+                            && !(cause instanceof CancellationException)) {
                         throw (Exception) cause;
                     }
                     throw e;
