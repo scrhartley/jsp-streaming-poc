@@ -12,7 +12,7 @@ public interface AsyncModel extends Model {
 
 
     interface AsyncValue<T> {
-        T get() throws Exception;
+        T await() throws Exception;
     }
 
 }
