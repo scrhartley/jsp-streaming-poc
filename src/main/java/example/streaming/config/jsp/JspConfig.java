@@ -148,7 +148,7 @@ public class JspConfig {
             if (value instanceof Future) {
                 futures.add((Future<?>) value);
             } else if (value instanceof UpgradeableFutureCollection) {
-                futures.addAll(((UpgradeableFutureCollection<?>) value).getFuturesPreUpgrade());
+                futures.addAll(((UpgradeableFutureCollection<?>) value).getOriginalFutures());
             }
         }
         return futures;

@@ -18,7 +18,7 @@ import example.streaming.util.future.LazyWrappedFuture;
 
 public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>> {
 
-    private List<UpgradeableFuture<T>> futures;
+    private final List<UpgradeableFuture<T>> futures;
     private Collection<Future<T>> upgraded;
     private final boolean extraLazy;
 
@@ -43,17 +43,10 @@ public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>
 
     @Override
     public int size() {
-        if (upgraded != null) {
-            return upgraded.size();
-        } else {
-            return futures.size();
-        }
+        return (upgraded != null ? upgraded : futures).size();
     }
 
-    public List<UpgradeableFuture<T>> getFuturesPreUpgrade() {
-        if (futures == null) {
-            throw new IllegalStateException("Attempted access after upgrade");
-        }
+    public List<UpgradeableFuture<T>> getOriginalFutures() {
         return futures;
     }
 
@@ -62,10 +55,9 @@ public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>
             throw new IllegalStateException("Already set");
         }
         upgraded = new UpgradedCollection<>(completed, queue, extraLazy);
-        futures = null; // Allow GC.
     }
 
-    interface PendingQueue<T> {
+    public interface PendingQueue<T> {
         UpgradeableFuture<T> take();
 
         int size();

@@ -13,7 +13,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
@@ -23,9 +22,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -57,32 +53,32 @@ public class FutureUpgrader {
 
         Collection<UpgradeableFuture<Object>> done;
         List<UpgradeableFuture<Object>> tasksToUpgrade;
-        List<UpgradeableFutureCollection<?>> iterables;
+        List<UpgradeableFutureCollection<?>> containers;
         if (executorService instanceof LazyDirectExecutorService) {
             // A CompletionService doesn't make sense for LazyDirectExecutorService
             // since either the work will be done on submit, or else
             // later we would hang when trying to take from it.
             tasksToUpgrade = Collections.emptyList();
             done = ufAttributeLookup.keySet();
-            iterables = Collections.emptyList();
+            containers = Collections.emptyList();
         } else {
             Map<Boolean, List<UpgradeableFuture<Object>>> tasksByDone = ufAttributeLookup.keySet().stream()
                     .collect(Collectors.partitioningBy(Future::isDone));
             tasksToUpgrade = tasksByDone.get(false);
             done = tasksByDone.get(true);
-            iterables = model.values().stream()
+            containers = model.values().stream()
                     .filter(UpgradeableFutureCollection.class::isInstance)
                     .<UpgradeableFutureCollection<?>>map(UpgradeableFutureCollection.class::cast)
-                    .filter(it -> it.getFuturesPreUpgrade().stream().anyMatch(future -> !future.isDone()))
+                    .filter(c -> c.getOriginalFutures().stream().anyMatch(future -> !future.isDone()))
                     .collect(Collectors.toList());
         }
 
 
         BlockingQueue<Future<Object>> completionQueue = new LinkedBlockingQueue<>(done);
 
-        Map<Future<?>, UpgradeableFuture<?>> upgradedFutureLookup =
-                (!tasksToUpgrade.isEmpty() || !iterables.isEmpty())
-                        ? upgradeAll(tasksToUpgrade, iterables, completionQueue)
+        Map<Future<?>, UpgradeableFuture<Object>> upgradedFutureLookup =
+                (!tasksToUpgrade.isEmpty() || !containers.isEmpty())
+                        ? upgradeAll(tasksToUpgrade, containers, completionQueue)
                         : Collections.emptyMap();
         // Also track CompletableFuture in order to provide support for futures not under our control.
         Map<CompletableFuture<Object>, String> cfAttributeLookup = trackCompletableFutures(model, completionQueue);
@@ -91,76 +87,51 @@ public class FutureUpgrader {
             return FutureUpgraderResult.empty();
         }
 
-        Map<Future<Object>, String> attributeLookup = new HashMap<>();
+        Map<Future<?>, String> attributeLookup = new HashMap<>();
         attributeLookup.putAll(ufAttributeLookup);
         attributeLookup.putAll(cfAttributeLookup);
         return newResult(attributeLookup, completionQueue, upgradedFutureLookup, timeoutSeconds);
     }
 
 
-    private Map<Future<?>, UpgradeableFuture<?>> upgradeAll(
-            List<UpgradeableFuture<Object>> tasks, List<UpgradeableFutureCollection<?>> iterables,
+    private Map<Future<?>, UpgradeableFuture<Object>> upgradeAll(
+            List<UpgradeableFuture<Object>> tasks, List<UpgradeableFutureCollection<?>> containers,
             BlockingQueue<Future<Object>> completionQueue) {
         // Collect futures for possible cancellation.
         List<Future<?>> allFutures = Stream.concat(
                 tasks.stream(),
-                iterables.stream().flatMap(it -> it.getFuturesPreUpgrade().stream())
+                containers.stream().flatMap(c -> c.getOriginalFutures().stream())
         ).collect(Collectors.toList());
 
-        ReadWriteLock rwl = new ReentrantReadWriteLock();
-        rwl.writeLock().lock();
         try {
-            Lock readLock = rwl.readLock();
-
-            Map<Future<?>, UpgradeableFuture<?>> mapping;
+            Map<Future<?>, UpgradeableFuture<Object>> mapping;
             if (!tasks.isEmpty()) {
-                mapping = new HashMap<>();
-
                 CompletionService<Object> completionService =
                         new ExecutorCompletionService<>(executorService, completionQueue);
-                for (UpgradeableFuture<Object> task : tasks) {
-                    Future<?> upgraded = upgradeFuture(task, readLock, completionService);
-                    if (upgraded == null) {
-                        completionQueue.add(task);
-                    } else {
-                        mapping.put(upgraded, task);
-                    }
-                }
+                mapping = upgradeFutures(tasks, completionService, completionQueue);
             } else {
                 mapping = Collections.emptyMap();
             }
 
-            if (!iterables.isEmpty()) {
-                for (UpgradeableFutureCollection<?> iterable : iterables) {
-                    upgradeIterable(iterable, readLock);
-                }
+            for (UpgradeableFutureCollection<?> container : containers) {
+                upgradeContainer(container, new ExecutorCompletionService<>(executorService));
             }
 
             return mapping;
-        } catch (RuntimeException e) { // Mainly worried about RejectedExecutionException
+        }
+        catch (RuntimeException e) { // Mainly worried about RejectedExecutionException
             for (Future<?> task : allFutures) {
                 task.cancel(true);
             }
             throw e;
-        } finally {
-            rwl.writeLock().unlock();
         }
     }
 
-    private <T> void upgradeIterable(UpgradeableFutureCollection<T> iterable, Lock readLock) {
-        CompletionService<T> ecs = new ExecutorCompletionService<>(executorService);
-        List<UpgradeableFuture<T>> tasks = iterable.getFuturesPreUpgrade();
+    private <T> void upgradeContainer(UpgradeableFutureCollection<T> container, CompletionService<T> cs) {
+        List<UpgradeableFuture<T>> tasks = container.getOriginalFutures();
 
         List<UpgradeableFuture<T>> completed = new ArrayList<>();
-        Map<Future<T>, UpgradeableFuture<T>> pendingLookup = new HashMap<>();
-        for (UpgradeableFuture<T> task : tasks) {
-            Future<T> submitted = upgradeFuture(task, readLock, ecs);
-            if (submitted == null) {
-                completed.add(task);
-            } else {
-                pendingLookup.put(submitted, task);
-            }
-        }
+        Map<Future<?>, UpgradeableFuture<T>> pendingLookup = upgradeFutures(tasks, cs, completed);
 
         // Can't expose the CompletionService directly, since it doesn't return an UpgradeableFuture.
         UpgradeableFutureCollection.PendingQueue<T> queue = new UpgradeableFutureCollection.PendingQueue<>() {
@@ -169,7 +140,7 @@ public class FutureUpgrader {
             @Override
             public UpgradeableFuture<T> take() {
                 try {
-                    Future<T> future = ecs.poll(timeoutSeconds, TimeUnit.SECONDS);
+                    Future<T> future = cs.poll(timeoutSeconds, TimeUnit.SECONDS);
                     if (future == null) {
                         throw new RuntimeException(new TimeoutException());
                     }
@@ -185,32 +156,35 @@ public class FutureUpgrader {
                 return remaining;
             }
         };
-        iterable.setUpgradedFutures(completed, queue);
+        container.setUpgradedFutures(completed, queue);
     }
 
-    private <T> Future<T> upgradeFuture(
-            UpgradeableFuture<T> task, Lock readLock, CompletionService<T> submitter) throws RejectedExecutionException {
+    private static <T> Map<Future<?>, UpgradeableFuture<T>> upgradeFutures(
+            Collection<UpgradeableFuture<T>> tasks,
+            CompletionService<T> completionService, Collection<? super UpgradeableFuture<T>> completed)
+            throws RejectedExecutionException {
+        Map<Future<?>, UpgradeableFuture<T>> mapping = new HashMap<>();
+        for (UpgradeableFuture<T> task : tasks) {
+            Future<?> upgraded = upgradeFuture(task, completionService);
+            if (upgraded == null) {
+                completed.add(task);
+            } else {
+                mapping.put(upgraded, task);
+            }
+        }
+        return mapping;
+    }
+
+    private static <T> Future<?> upgradeFuture(UpgradeableFuture<T> task, CompletionService<T> submitter) throws RejectedExecutionException {
         // Extra check in case we are using a same-thread executor
         // and a task has been run by another that depends on it.
         if (task.isDone()) return null;
 
-        Callable<T> callable = task.getCallable();
-        Future<T> future = submitter.submit(() -> {
-            // Block running callable until write lock has been released.
-            // We don't want tasks that call each other to be inconsistent: try to upgrade all first.
-            // (Note: if executor runs on writeLock thread then readLock will be granted immediately.)
-            if (readLock.tryLock(timeoutSeconds, TimeUnit.SECONDS)) {
-                readLock.unlock();
-                return callable.call();
-            } else { // Executor is overloaded???
-                throw new TimeoutException("Could not acquire read lock.");
-            }
-        });
-
+        Future<?> future = submitter.submit(task, null);
         try {
-            task.upgradeFuture(future);
+            task.upgrade(future);
             return future;
-        } catch (RuntimeException e) {
+        } catch (RuntimeException e) { // Shouldn't happen.
             future.cancel(true);
             throw e;
         }
@@ -218,8 +192,8 @@ public class FutureUpgrader {
 
 
     private static FutureUpgraderResult newResult(
-            Map<? extends Future<?>, String> attributeLookup, BlockingQueue<Future<Object>> completionQueue,
-            Map<Future<?>, UpgradeableFuture<?>> upgradedFutureLookup, int timeoutSeconds) {
+            Map<Future<?>, String> attributeLookup, BlockingQueue<Future<Object>> completionQueue,
+            Map<Future<?>, UpgradeableFuture<Object>> upgradedFutureLookup, int timeoutSeconds) {
         Set<String> attributeNames = new HashSet<>(attributeLookup.values());
         return new FutureUpgraderResult(Collections.unmodifiableSet(attributeNames), new Iterable<>() {
             final List<String> allCompleted = new ArrayList<>();
