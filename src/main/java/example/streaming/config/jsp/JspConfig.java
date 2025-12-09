@@ -1,6 +1,7 @@
 package example.streaming.config.jsp;
 
 import static example.streaming.config.jsp.StreamingJspExceptionHandler.*;
+import static example.streaming.config.mvc.FutureUpgrader.*;
 import static java.util.Collections.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,10 +100,12 @@ public class JspConfig {
                            HttpServletResponse response) throws Exception {
             List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
-                if (futureUpgrader != null) futureUpgrader.upgradeFutures(model);
-                super.render(model, request, response);
-            } catch (Exception e) {
-                handleException(e, response);
+                upgradeAndTrackFutures(model, request, futureUpgrader);
+                try {
+                    super.render(model, request, response);
+                } catch (Exception e) {
+                    handleException(e, response);
+                }
             } finally {
                 for (Future<?> future : futures) {
                     future.cancel(true);
@@ -121,10 +124,12 @@ public class JspConfig {
                            HttpServletResponse response) throws Exception {
             List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
-                if (futureUpgrader != null) futureUpgrader.upgradeFutures(model);
-                super.render(model, request, response);
-            } catch (Exception e) {
-                handleException(e, response);
+                upgradeAndTrackFutures(model, request, futureUpgrader);
+                try {
+                    super.render(model, request, response);
+                } catch (Exception e) {
+                    handleException(e, response);
+                }
             } finally {
                 for (Future<?> future : futures) {
                     future.cancel(true);
@@ -147,6 +152,14 @@ public class JspConfig {
             }
         }
         return futures;
+    }
+
+    private static void upgradeAndTrackFutures(
+            Map<String, ?> model, HttpServletRequest request, FutureUpgrader futureUpgrader) {
+        if (futureUpgrader != null) {
+            FutureUpgraderResult result = futureUpgrader.upgradeFutures(model);
+            request.setAttribute(FutureUpgraderResult.KEY, result);
+        }
     }
 
 

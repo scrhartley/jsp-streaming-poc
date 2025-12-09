@@ -19,47 +19,49 @@
 	</head>
 	<body>
 	    <ul>
-            <li> <div>My page using defer tag!</div> </li>
+            <li> <div>My page using asyncDefer tag!</div> </li>
 
             <li>
-                <tag:defer> <div>${myData1}</div> </tag:defer>
+                <tag:asyncDefer dependencies="myData1"> <div>${myData1}</div> </tag:asyncDefer>
             </li>
             <li>
-                <tag:defer fallback="${myLoadingFallback}"> <div>${myData2}</div> </tag:defer>
+                <tag:asyncDefer dependencies="myData2" fallback="${myLoadingFallback}">
+                    <div>${myData2}</div>
+                </tag:asyncDefer>
             </li>
             <li>
-                <tag:defer>
+                <tag:asyncDefer dependencies="myData3">
                     <jsp:attribute name="fallbackFragment">
                         Loading (with fragment fallback) ...
                     </jsp:attribute>
                     <jsp:body> <div>${myData3}</div> </jsp:body>
-                </tag:defer>
+                </tag:asyncDefer>
             </li>
 
             <li>
-                <tag:defer fallback="Loading (with HTML string fallback) ...">
+                <tag:asyncDefer dependencies="myData4" fallback="Loading (with HTML string fallback) ... ">
                     <div class="box">
 
                         <div>${myData4}</div>
 
                         <div class="box">
-                            <tag:defer fallback="Loading (nested) ...">
+                            <tag:asyncDefer dependencies="myData5" fallback="Loading (nested) ...">
                                 <div>${myData5}</div>
-                            </tag:defer>
+                            </tag:asyncDefer>
 
                             <div class="box">
-                                <tag:defer fallback="Loading (nested 2) ...">
+                                <tag:asyncDefer dependencies="myData6" fallback="Loading (nested 2) ...">
                                     ${myData6}
-                                </tag:defer>
+                                </tag:asyncDefer>
                             </div>
                         </div>
 
                     </div>
-                </tag:defer>
+                </tag:asyncDefer>
             </li>
         </ul>
 
         <div>Page finished!</div>
-        <tag:renderDeferred />
+        <tag:renderAsyncDeferred />
     </body>
 </html>

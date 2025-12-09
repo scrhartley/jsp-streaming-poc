@@ -25,27 +25,30 @@ public class RenderDeferredTag extends SimpleTagSupport {
         while (deferredMap != null && !deferredMap.isEmpty()) {
             for (Map.Entry<String, JspFragment> deferred : deferredMap.entrySet()) {
                 out.flush(); // Rendering may block, so send buffered HTML to client first.
-
-                StringWriter writer = new StringWriter();
-                deferred.getValue().invoke(writer);
-
-                StringBuilder builder = new StringBuilder();
-                builder.append("<template>").append(writer).append("</template>");
-                builder.append("<script>(() => {");
-                appendJavaScript(builder, deferred.getKey());
-                builder.append("})();</script>");
-
-                out.write(builder.toString());
+                render(deferred, out);
             }
             deferredMap = getAndClearPendingItems(jspContext); // May be new ones due to nesting
         }
+    }
+
+    protected void render(Map.Entry<String, JspFragment> deferred, JspWriter out) throws JspException, IOException {
+        StringWriter writer = new StringWriter();
+        deferred.getValue().invoke(writer);
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("<template>").append(writer).append("</template>");
+        builder.append("<script>(() => {");
+        appendJavaScript(builder, deferred.getKey());
+        builder.append("})();</script>");
+
+        out.write(builder.toString());
     }
 
     // Replace the fallback with the real content.
     // Expect fallback to look something like:
     // <!--JD$--><template id="fbId"></template><div>1</div><div>2</div><!--/JD$-->
     // (with the template always empty and the fallback's nodes following it)
-    private static void appendJavaScript(StringBuilder builder, String fallbackId) {
+    private void appendJavaScript(StringBuilder builder, String fallbackId) {
         builder.append("const self = document.currentScript;");
         builder.append("const contentNode = self.previousSibling;"); // template
         builder.append("contentNode.remove();"); // Detach from DOM tree, but keep a reference.
@@ -57,7 +60,7 @@ public class RenderDeferredTag extends SimpleTagSupport {
         builder.append("let node = fb.previousSibling;"); // Start from opening comment
         builder.append("do {");
         builder.append(    "if (node.nodeType === ").append(COMMENT_NODE);
-        builder.append(            " && node.data === '").append(END_DATA).append("') {");
+        builder.append(            " && node.data === '").append(getEndDataMarker()).append("') {");
         builder.append(        "break;");
         builder.append(    "}");
         builder.append(    "const nextNode = node.nextSibling;");
@@ -68,5 +71,9 @@ public class RenderDeferredTag extends SimpleTagSupport {
 
         builder.append("fbParent.replaceChild(contentNode.content, node);"); // Replace end comment
         builder.append("self.remove();");
+    }
+
+    protected String getEndDataMarker() {
+        return DeferTag.END_DATA;
     }
 }
