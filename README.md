@@ -96,6 +96,16 @@ These types of execution contrast with the standard MVC pattern of assembling al
   Both defer and renderDeferred are implemented as custom Java tags.
 
 
+- `/async-defer` ***Async defer and render async deferred directives (EXPERIMENTAL)***  
+  Async defer allows multiple loading indicators by queuing the evaluation of content until renderAsyncDeferred is invoked.  
+  This pair of tags requires JavaScript to work. The renderAsyncDeferred tag processes
+  the queued content and to allow this to be done out-of-order, each asyncDefer must declare the futures it depends on.  
+  The context of each asyncDefer is not retained and so while each fallback will work as expected,
+  its queued body will have the context of where the renderAsyncDeferred was invoked,
+  as if the asyncDefer's body content was defined at the location of the renderAsyncDeferred.  
+  Both asyncDefer and renderAsyncDeferred are implemented as custom Java tags.
+
+
 ## Notes
 
 ### Error handling

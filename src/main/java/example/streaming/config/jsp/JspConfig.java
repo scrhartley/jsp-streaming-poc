@@ -18,8 +18,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import example.streaming.config.mvc.TrackedModelFutures;
 
 // Originally added to handle LazyInvocableJspValueException.
 @Configuration
@@ -89,9 +93,12 @@ public class JspConfig {
                            HttpServletResponse response) throws Exception {
             List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
-                super.render(model, request, response);
-            } catch (Exception e) {
-                handleException(e, response);
+                trackCompletableFutures(model, request);
+                try {
+                    super.render(model, request, response);
+                } catch (Exception e) {
+                    handleException(e, response);
+                }
             } finally {
                 for (Future<?> future : futures) {
                     future.cancel(true);
@@ -105,9 +112,12 @@ public class JspConfig {
                            HttpServletResponse response) throws Exception {
             List<Future<?>> futures = CANCEL_UNCOMPLETED_FUTURES ? getFutures(model) : emptyList();
             try {
-                super.render(model, request, response);
-            } catch (Exception e) {
-                handleException(e, response);
+                trackCompletableFutures(model, request);
+                try {
+                    super.render(model, request, response);
+                } catch (Exception e) {
+                    handleException(e, response);
+                }
             } finally {
                 for (Future<?> future : futures) {
                     future.cancel(true);
@@ -123,6 +133,23 @@ public class JspConfig {
                         .filter(Future.class::isInstance)
                         .<Future<?>>map(Future.class::cast)
                         .collect(Collectors.toList());
+    }
+
+    private static void trackCompletableFutures(@Nullable Map<String,?> model, HttpServletRequest request) {
+        TrackedModelFutures tracking = (TrackedModelFutures) request.getAttribute(TrackedModelFutures.KEY);
+        if (tracking == null) {
+            tracking = new TrackedModelFutures();
+            request.setAttribute(TrackedModelFutures.KEY, tracking);
+        }
+
+        if (model == null || model.isEmpty()) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Stream<Map.Entry<String, CompletableFuture<Object>>> cfs = model.entrySet().stream()
+                .filter(entry -> entry.getValue() instanceof CompletableFuture)
+                .map(Map.Entry.class::cast);
+        tracking.addCompletableFutures(cfs);
     }
 
 

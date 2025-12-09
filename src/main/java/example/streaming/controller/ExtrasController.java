@@ -48,13 +48,23 @@ public class ExtrasController {
 
     @GetMapping("/defer")
     public String defer(AsyncModel model) {
+        addDeferAttributes(model);
+        return "extras/defer";
+    }
+
+    @GetMapping("/async-defer")
+    public String asyncDefer(AsyncModel model) {
+        addDeferAttributes(model);
+        return "extras/async_defer";
+    }
+
+    private static void addDeferAttributes(AsyncModel model) {
         for (int i = 1; i <= 6; i++) {
             model.addAttribute("myData" + i, () -> {
                 Thread.sleep(2_500);
                 return "Work done";
             });
         }
-        return "extras/defer";
     }
 
 }

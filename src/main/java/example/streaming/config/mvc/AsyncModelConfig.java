@@ -1,15 +1,20 @@
-package example.streaming.config;
+package example.streaming.config.mvc;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -22,6 +27,7 @@ import org.springframework.ui.Model;
 import org.springframework.util.Assert;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.method.annotation.ModelMethodProcessor;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
@@ -29,6 +35,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
 import example.streaming.AsyncModel;
+import example.streaming.util.future.LazyDirectExecutorService;
 
 public class AsyncModelConfig {
 
@@ -66,7 +73,7 @@ public class AsyncModelConfig {
             Object model = mavContainer.getModel();
             if (model == mavContainer.getDefaultModel()) { // Not redirect
                 Assert.isInstanceOf(Model.class, model);
-                model = new ExecutorAsyncModel((Model) model, executorService);
+                model = new ExecutorAsyncModel((Model) model, executorService, webRequest);
             }
             return model;
         }
@@ -108,15 +115,28 @@ public class AsyncModelConfig {
 
     private static class ExecutorAsyncModel extends WrappingModel implements AsyncModel {
         private final ExecutorService executorService;
+        private final CompletionService<Object> completionService;
+        private final BlockingQueue<Future<Object>> completionQueue;
+        private final Map<String, Future<Object>> futureAttributes;
 
-        private ExecutorAsyncModel(Model model, ExecutorService executorService) {
+        private ExecutorAsyncModel(Model model, ExecutorService executorService, RequestAttributes request) {
             super(model);
             this.executorService = executorService;
+            BlockingQueue<Future<Object>> completionQueue = new LinkedBlockingQueue<>();
+            this.completionQueue = completionQueue;
+            this.completionService = new ExecutorCompletionService<>(executorService, completionQueue);
+            Map<String, Future<Object>> futureAttributes = new HashMap<>();
+            this.futureAttributes = futureAttributes;
+
+            request.setAttribute(
+                    TrackedModelFutures.KEY,
+                    new TrackedModelFutures(futureAttributes, completionQueue),
+                    RequestAttributes.SCOPE_REQUEST);
         }
 
         @Override
         public <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> callable) {
-            Future<T> future = executorService.submit(callable);
+            Future<T> future = submit(attributeName, callable);
             super.addAttribute(attributeName, future);
             return asAsyncValue(future);
         }
@@ -140,6 +160,25 @@ public class AsyncModelConfig {
                     throw e;
                 }
             };
+        }
+
+        @SuppressWarnings("unchecked")
+        private <T> Future<T> submit(String attributeName, Callable<T> callable) {
+            Future<T> specificfuture;
+            Future<Object> generalFuture;
+            if (executorService instanceof LazyDirectExecutorService) {
+                // A CompletionService doesn't make sense for LazyDirectExecutorService
+                // since either the work will be done on submit, or else
+                // later we would hang when trying to take from it.
+                specificfuture = executorService.submit(callable);
+                generalFuture = (Future<Object>) specificfuture;
+                completionQueue.add(generalFuture);
+            } else {
+                generalFuture = completionService.submit((Callable<Object>) callable);
+                specificfuture = (Future<T>) generalFuture;
+            }
+            futureAttributes.put(attributeName, generalFuture);
+            return specificfuture;
         }
     }
 

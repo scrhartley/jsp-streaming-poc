@@ -34,4 +34,36 @@
         <body-content>empty</body-content>
     </tag>
 
+
+    <tag>
+        <description>This tag is for asynchronously deferring content</description>
+        <name>asyncDefer</name>
+        <tag-class>example.streaming.config.jsp.tag.AsyncDeferTag</tag-class>
+        <body-content>scriptless</body-content>
+        <attribute>
+            <name>fallback</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>fallbackFragment</name>
+            <required>false</required>
+            <fragment>true</fragment>
+        </attribute>
+        <attribute>
+            <name>dependencies</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+
+    <tag>
+        <description>This tag is for rendering async deferring content</description>
+        <name>renderAsyncDeferred</name>
+        <tag-class>example.streaming.config.jsp.tag.AsyncRenderDeferredTag</tag-class>
+        <body-content>empty</body-content>
+    </tag>
+
 </taglib>
