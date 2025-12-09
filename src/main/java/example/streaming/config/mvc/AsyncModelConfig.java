@@ -2,9 +2,11 @@ package example.streaming.config.mvc;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.MethodParameter;
+import org.springframework.lang.Nullable;
 import org.springframework.ui.Model;
 import org.springframework.util.Assert;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -88,6 +91,7 @@ public class AsyncModelConfig {
         @Override
         public void afterPropertiesSet() {
             List<HandlerMethodArgumentResolver> resolvers = handlerAdapter.getArgumentResolvers();
+            Objects.requireNonNull(resolvers);
 
             OptionalInt syncIdx = IntStream.range(0, resolvers.size())
                     .filter(i-> resolvers.get(i) instanceof ModelMethodProcessor)
@@ -136,9 +140,40 @@ public class AsyncModelConfig {
 
         @Override
         public <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> callable) {
+            validateAttribute(attributeName, null);
             Future<T> future = submit(attributeName, callable);
             super.addAttribute(attributeName, future);
             return asAsyncValue(future);
+        }
+
+        @Override
+        public Model addAttribute(String name, @Nullable Object value) {
+            validateAttribute(name, value);
+            return super.addAttribute(name, value);
+        }
+
+        @Override
+        public Model addAllAttributes(Map<String, ?> attributes) {
+            if (attributes != null) {
+                for (Map.Entry<String, ?> entry : attributes.entrySet()) {
+                    validateAttribute(entry.getKey(), entry.getValue());
+                }
+            }
+            return super.addAllAttributes(attributes);
+        }
+
+        @Override
+        public Map<String, Object> asMap() {
+            return Collections.unmodifiableMap(super.asMap());
+        }
+
+
+        private void validateAttribute(String name, Object value) {
+            Objects.requireNonNull(name);
+            Object existingValue = getAttribute(name);
+            if (existingValue instanceof Future && existingValue != value) {
+                throw new IllegalStateException("Replacing a future is forbidden");
+            }
         }
 
         // Allow other passed in callables calling this to catch their
@@ -180,7 +215,9 @@ public class AsyncModelConfig {
             futureAttributes.put(attributeName, generalFuture);
             return specificfuture;
         }
+
     }
+
 
     private static class WrappingModel implements Model {
         private final Model source;
