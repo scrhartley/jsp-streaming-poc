@@ -3,7 +3,7 @@ package example.streaming.config.mvc;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -129,7 +129,7 @@ public class AsyncModelConfig {
             BlockingQueue<Future<Object>> completionQueue = new LinkedBlockingQueue<>();
             this.completionQueue = completionQueue;
             this.completionService = new ExecutorCompletionService<>(executorService, completionQueue);
-            Map<String, Future<Object>> futureAttributes = new HashMap<>();
+            Map<String, Future<Object>> futureAttributes = new LinkedHashMap<>();
             this.futureAttributes = futureAttributes;
 
             request.setAttribute(
