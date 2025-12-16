@@ -227,23 +227,28 @@ public class AsyncModelConfig {
 
         @Override
         public Model addAttribute(String name, Object value) {
-            return source.addAttribute(name, value);
+            source.addAttribute(name, value);
+            return this;
         }
         @Override
         public Model addAttribute(Object value) {
-            return source.addAttribute(value);
+            source.addAttribute(value);
+            return this;
         }
         @Override
         public Model addAllAttributes(Collection<?> values) {
-            return source.addAllAttributes(values);
+            source.addAllAttributes(values);
+            return this;
         }
         @Override
         public Model addAllAttributes(Map<String, ?> attributes) {
-            return source.addAllAttributes(attributes);
+            source.addAllAttributes(attributes);
+            return this;
         }
         @Override
         public Model mergeAttributes(Map<String, ?> attributes) {
-            return source.mergeAttributes(attributes);
+            source.mergeAttributes(attributes);
+            return this;
         }
         @Override
         public boolean containsAttribute(String name) {
