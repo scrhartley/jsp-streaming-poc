@@ -43,13 +43,13 @@ public class FutureUpgrader {
         }
 
         @SuppressWarnings("unchecked")
-        Map<UpgradeableFuture<Object>, String> ufAttributeLookup = model.entrySet().stream()
+        Map<UpgradeableFuture<Object>, Set<String>> ufAttributeLookup = model.entrySet().stream()
                 .filter(entry -> entry.getValue() instanceof UpgradeableFuture)
                 .map(entry -> (Map.Entry<String, UpgradeableFuture<Object>>) entry)
-                .collect(Collectors.toMap(
-                        Map.Entry::getValue, Map.Entry::getKey,
-                        (u,v) -> { throw new IllegalStateException(String.format("Duplicate key %s", u)); },
-                        LinkedHashMap::new)); // For predictability when using single thread executor.
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getValue,
+                        LinkedHashMap::new, // For predictability when using single thread executor.
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toSet())));
 
         Collection<UpgradeableFuture<Object>> done;
         List<UpgradeableFuture<Object>> tasksToUpgrade;
@@ -81,13 +81,13 @@ public class FutureUpgrader {
                         ? upgradeAll(tasksToUpgrade, containers, completionQueue)
                         : Collections.emptyMap();
         // Also track CompletableFuture in order to provide support for futures not under our control.
-        Map<CompletableFuture<Object>, String> cfAttributeLookup = trackCompletableFutures(model, completionQueue);
+        Map<CompletableFuture<Object>, Set<String>> cfAttributeLookup = trackCompletableFutures(model, completionQueue);
 
         if (ufAttributeLookup.isEmpty() && cfAttributeLookup.isEmpty()) {
             return FutureUpgraderResult.empty();
         }
 
-        Map<Future<?>, String> attributeLookup = new HashMap<>();
+        Map<Future<?>, Set<String>> attributeLookup = new HashMap<>();
         attributeLookup.putAll(ufAttributeLookup);
         attributeLookup.putAll(cfAttributeLookup);
         return newResult(attributeLookup, completionQueue, upgradedFutureLookup, timeoutSeconds);
@@ -192,16 +192,18 @@ public class FutureUpgrader {
 
 
     private static FutureUpgraderResult newResult(
-            Map<Future<?>, String> attributeLookup, BlockingQueue<Future<Object>> completionQueue,
+            Map<Future<?>, Set<String>> attributeLookup, BlockingQueue<Future<Object>> completionQueue,
             Map<Future<?>, UpgradeableFuture<Object>> upgradedFutureLookup, int timeoutSeconds) {
-        Set<String> attributeNames = new HashSet<>(attributeLookup.values());
+        Set<String> attributeNames = attributeLookup.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
         return new FutureUpgraderResult(Collections.unmodifiableSet(attributeNames), new Iterable<>() {
-            final List<String> allCompleted = new ArrayList<>();
+            final List<Set<String>> allCompleted = new ArrayList<>();
 
             @Override
-            public Iterator<String> iterator() {
+            public Iterator<Collection<String>> iterator() {
                 return new Iterator<>() {
-                    final Iterator<String> doneIt = allCompleted.isEmpty()
+                    final Iterator<Set<String>> doneIt = allCompleted.isEmpty()
                             ? Collections.emptyIterator() : new ArrayList<>(allCompleted).iterator(); // Snapshot
                     int pending = attributeLookup.size() - allCompleted.size();
 
@@ -211,7 +213,7 @@ public class FutureUpgrader {
                     }
 
                     @Override
-                    public String next() {
+                    public Collection<String> next() {
                         if (doneIt.hasNext()) {
                             return doneIt.next();
                         } else if (pending == 0) {
@@ -226,36 +228,44 @@ public class FutureUpgrader {
                         }
                     }
 
-                    private String nextFromQueue() throws InterruptedException {
+                    private Set<String> nextFromQueue() throws InterruptedException {
                         Future<?> future = completionQueue.poll(timeoutSeconds, TimeUnit.SECONDS);
                         if (future == null) {
                             throw new RuntimeException(new TimeoutException());
                         }
                         pending--;
                         UpgradeableFuture<?> upgradeableFuture = upgradedFutureLookup.get(future);
-                        String attribute = attributeLookup.get(upgradeableFuture != null ? upgradeableFuture : future);
-                        Objects.requireNonNull(attribute, "Something has gone wrong");
-                        allCompleted.add(attribute);
-                        return attribute;
+                        Set<String> attributes = attributeLookup.get(upgradeableFuture != null ? upgradeableFuture : future);
+                        Objects.requireNonNull(attributes, "Something has gone wrong");
+                        allCompleted.add(attributes);
+                        return attributes;
                     }
                 };
             }
         });
     }
 
-    private static Map<CompletableFuture<Object>, String>
+    private static Map<CompletableFuture<Object>, Set<String>>
             trackCompletableFutures(Map<String, ?> model, BlockingQueue<Future<Object>> completionQueue) {
-        Map<CompletableFuture<Object>, String> attributeLookup = null;
+        Map<CompletableFuture<Object>, Set<String>> attributeLookup = null;
+
         for (Map.Entry<String, ?> entry : model.entrySet()) {
             if (entry.getValue() instanceof CompletableFuture) {
                 @SuppressWarnings("unchecked")
                 CompletableFuture<Object> cf = (CompletableFuture<Object>) entry.getValue();
-                cf.whenComplete((v, t) -> completionQueue.add(cf));
-
                 if (attributeLookup == null) {
                     attributeLookup = new HashMap<>();
                 }
-                attributeLookup.put(cf, entry.getKey());
+                attributeLookup.compute(cf, (k, oldVal) -> {
+                    if (oldVal == null) {
+                        cf.whenComplete((v, t) -> completionQueue.add(cf));
+                        return Collections.singleton(entry.getKey());
+                    } else { // Should be rare.
+                        Set<String> result = (oldVal.size() == 1) ? new HashSet<>(oldVal) : oldVal;
+                        result.add(entry.getKey());
+                        return result;
+                    }
+                });
             }
         }
         return attributeLookup != null ? attributeLookup : Collections.emptyMap();
@@ -266,9 +276,9 @@ public class FutureUpgrader {
         public static final String KEY = "mvc.model.future.tracked.state";
 
         private final Set<String> futureAttributeNames;
-        private final Iterable<String> completionQueue;
+        private final Iterable<Collection<String>> completionQueue;
 
-        private FutureUpgraderResult(Set<String> futureAttributeNames, Iterable<String> completionQueue) {
+        private FutureUpgraderResult(Set<String> futureAttributeNames, Iterable<Collection<String>> completionQueue) {
             this.futureAttributeNames = futureAttributeNames;
             this.completionQueue = completionQueue;
         }
@@ -277,7 +287,7 @@ public class FutureUpgrader {
             return futureAttributeNames;
         }
 
-        public Iterable<String> getCompletionQueue() {
+        public Iterable<Collection<String>> getCompletionQueue() {
             return completionQueue;
         }
 

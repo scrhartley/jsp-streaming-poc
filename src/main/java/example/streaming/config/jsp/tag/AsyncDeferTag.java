@@ -5,6 +5,7 @@ import static example.streaming.config.mvc.FutureUpgrader.*;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -140,7 +141,7 @@ public class AsyncDeferTag extends SimpleTagSupport {
         }
 
         return new Iterator<>() {
-            final Iterator<String> queue = getFuturesState(context).getCompletionQueue().iterator();
+            final Iterator<Collection<String>> queue = getFuturesState(context).getCompletionQueue().iterator();
             final Set<String> allResolved = new HashSet<>();
             int expectedPendingCount = pendingItems.size();
 
@@ -173,10 +174,10 @@ public class AsyncDeferTag extends SimpleTagSupport {
                 }
 
                 while (queue.hasNext()) {
-                    String resolved = queue.next();
-                    allResolved.add(resolved);
+                    Collection<String> resolved = queue.next();
+                    allResolved.addAll(resolved);
                     for (PendingItem item : pendingItems) {
-                        item.dependencies.remove(resolved);
+                        item.dependencies.removeAll(resolved);
                     }
                     if ((ready = nextReady()) != null) {
                         return ready;
