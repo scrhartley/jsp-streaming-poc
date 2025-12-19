@@ -115,9 +115,9 @@ public class AsyncModelConfig {
 
         @Override
         public <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> callable) {
-            Future<T> future = new UpgradeableFuture<>(callable);
+            AsyncValue<T> future = new AsyncValueUpgradeableFuture<>(callable);
             super.addAttribute(attributeName, future);
-            return asAsyncValue(future);
+            return future;
         }
 
         @Override
@@ -126,15 +126,20 @@ public class AsyncModelConfig {
             super.addAttribute(attributeName, futures);
         }
 
-        // Allow other passed in callables calling this to catch their
-        // business logic exceptions as if there wasn't a future involved.
-        // For things like InterruptedExceptions and TimeoutException
-        // it won't be obvious they're there, and they can just propagate.
-        // Also ensure that there's always a timeout involved.
-        private static <T> AsyncValue<T> asAsyncValue(Future<T> future) {
-            return () -> {
+        private static class AsyncValueUpgradeableFuture<T> extends UpgradeableFuture<T> implements AsyncValue<T> {
+            AsyncValueUpgradeableFuture(Callable<T> callable) {
+                super(callable);
+            }
+
+            // Allow other passed in callables calling this to catch their
+            // business logic exceptions as if there wasn't a future involved.
+            // For things like InterruptedExceptions and TimeoutException
+            // it won't be obvious they're there, and they can just propagate.
+            // Also ensure that there's always a timeout involved.
+            @Override
+            public T await() throws Exception {
                 try {
-                    return future.get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    return get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 } catch (ExecutionException e) {
                     Throwable cause = e.getCause();
                     if (cause instanceof Exception
@@ -144,7 +149,7 @@ public class AsyncModelConfig {
                     }
                     throw e;
                 }
-            };
+            }
         }
     }
 
