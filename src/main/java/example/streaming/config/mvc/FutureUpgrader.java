@@ -1,5 +1,6 @@
 package example.streaming.config.mvc;
 
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import example.streaming.AsyncModel;
 import example.streaming.util.future.LazyDirectExecutorService;
 
 public class FutureUpgrader {
@@ -42,10 +44,9 @@ public class FutureUpgrader {
             return FutureUpgraderResult.empty();
         }
 
-        @SuppressWarnings("unchecked")
-        Map<UpgradeableFuture<Object>, Set<String>> ufAttributeLookup = model.entrySet().stream()
-                .filter(entry -> entry.getValue() instanceof UpgradeableFuture)
-                .map(entry -> (Map.Entry<String, UpgradeableFuture<Object>>) entry)
+        Map<String, Future<?>> asyncModelProxies = getAsyncModelAttributesAsFutures(model);
+
+        Map<UpgradeableFuture<Object>, Set<String>> ufAttributeLookup = getUpgradeableFutureEntries(model, asyncModelProxies)
                 .collect(Collectors.groupingBy(
                         Map.Entry::getValue,
                         LinkedHashMap::new, // For predictability when using single thread executor.
@@ -81,7 +82,8 @@ public class FutureUpgrader {
                         ? upgradeAll(tasksToUpgrade, containers, completionQueue)
                         : Collections.emptyMap();
         // Also track CompletableFuture in order to provide support for futures not under our control.
-        Map<CompletableFuture<Object>, Set<String>> cfAttributeLookup = trackCompletableFutures(model, completionQueue);
+        Map<CompletableFuture<?>, Set<String>> cfAttributeLookup =
+                trackCompletableFutures(model, completionQueue, asyncModelProxies, null);
 
         if (ufAttributeLookup.isEmpty() && cfAttributeLookup.isEmpty()) {
             return FutureUpgraderResult.empty();
@@ -245,30 +247,113 @@ public class FutureUpgrader {
         });
     }
 
-    private static Map<CompletableFuture<Object>, Set<String>>
-            trackCompletableFutures(Map<String, ?> model, BlockingQueue<Future<Object>> completionQueue) {
-        Map<CompletableFuture<Object>, Set<String>> attributeLookup = null;
+    private static Stream<Map.Entry<String, UpgradeableFuture<Object>>>
+            getUpgradeableFutureEntries(Map<String, ?> model, Map<String, Future<?>> asyncModelProxyFutures) {
+        @SuppressWarnings("unchecked")
+        Stream<Map.Entry<String, UpgradeableFuture<Object>>> mainFutureEntries =
+                Stream.concat(model.entrySet().stream(), asyncModelProxyFutures.entrySet().stream())
+                        .filter(entry -> entry.getValue() instanceof UpgradeableFuture)
+                        .map(entry -> (Map.Entry<String, UpgradeableFuture<Object>>) entry);
 
-        for (Map.Entry<String, ?> entry : model.entrySet()) {
-            if (entry.getValue() instanceof CompletableFuture) {
+        @SuppressWarnings("unchecked")
+        Stream<Map.Entry<String, UpgradeableFuture<Object>>> subFutureEntries = model.entrySet().stream()
+                .filter(entry -> entry.getValue() instanceof AsyncModel)
+                .map(entry -> (Map.Entry<String, AsyncModel>) entry)
+                .flatMap(entry -> {
+                    String subKeyPrefix = entry.getKey() + '.';
+                    return entry.getValue().asMap().entrySet().stream()
+                            .filter(subEntry -> subEntry.getValue() instanceof UpgradeableFuture)
+                            .map(subEntry -> {
+                                String subKey = subKeyPrefix + subEntry.getKey();
+                                @SuppressWarnings("unchecked")
+                                UpgradeableFuture<Object> subValue = (UpgradeableFuture<Object>) subEntry.getValue();
+                                return new SimpleImmutableEntry<>(subKey, subValue);
+                            });
+                });
+
+        return Stream.concat(mainFutureEntries, subFutureEntries);
+    }
+
+    private static Map<CompletableFuture<?>, Set<String>>
+            trackCompletableFutures(
+                    Map<String, ?> model, BlockingQueue<Future<Object>> completionQueue,
+                    Map<String, Future<?>> asyncModelProxyFutures, String subModelPrefix) {
+        Map<CompletableFuture<?>, Set<String>> attributeLookup = new HashMap<>();
+
+        Stream<Map.Entry<String, ?>> stream =
+                Stream.concat(model.entrySet().stream(), asyncModelProxyFutures.entrySet().stream());
+        stream.forEach(entry -> {
+            Object value = entry.getValue();
+            if (value instanceof CompletableFuture) {
                 @SuppressWarnings("unchecked")
-                CompletableFuture<Object> cf = (CompletableFuture<Object>) entry.getValue();
-                if (attributeLookup == null) {
-                    attributeLookup = new HashMap<>();
-                }
+                CompletableFuture<Object> cf = (CompletableFuture<Object>) value;
+
+                String attrName = subModelPrefix == null ? entry.getKey() : subModelPrefix + entry.getKey();
                 attributeLookup.compute(cf, (k, oldVal) -> {
                     if (oldVal == null) {
                         cf.whenComplete((v, t) -> completionQueue.add(cf));
-                        return Collections.singleton(entry.getKey());
+                        return Collections.singleton(attrName);
                     } else { // Should be rare.
                         Set<String> result = (oldVal.size() == 1) ? new HashSet<>(oldVal) : oldVal;
-                        result.add(entry.getKey());
+                        result.add(attrName);
                         return result;
                     }
                 });
+            } else if (value instanceof AsyncModel) {
+                Map<String, ?> subModel = ((AsyncModel) value).asMap();
+                String prefix = entry.getKey() + '.';
+                attributeLookup.putAll(trackCompletableFutures(
+                        subModel, completionQueue, Collections.emptyMap(), prefix));
+            }
+        });
+
+        return attributeLookup;
+    }
+
+    private Map<String, Future<?>> getAsyncModelAttributesAsFutures(Map<String, ?> model) {
+        @SuppressWarnings("unchecked")
+        Map<AsyncModel, List<String>> asyncModels = model.entrySet().stream()
+                .filter(entry -> entry.getValue() instanceof AsyncModel)
+                .map(entry -> (Map.Entry<String, AsyncModel>) entry)
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getValue,
+                        LinkedHashMap::new, // For predictability when using single thread executor.
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toList())));
+
+        Map<String, Future<?>> resultsMap = new HashMap<>();
+        for (Map.Entry<AsyncModel, List<String>> entry : asyncModels.entrySet()) {
+            Map<String, ?> subModel = entry.getKey().asMap();
+
+            List<UpgradeableFuture<?>> ufs = subModel.values().stream()
+                    .filter(UpgradeableFuture.class::isInstance)
+                    .<UpgradeableFuture<?>>map(UpgradeableFuture.class::cast)
+                    .collect(Collectors.toList());
+
+            CompletableFuture<?>[] cfs = subModel.values().stream()
+                    .filter(CompletableFuture.class::isInstance)
+                    .<CompletableFuture<?>>map(CompletableFuture.class::cast)
+                    .toArray(CompletableFuture[]::new);
+
+            Future<?> future;
+            if (!ufs.isEmpty()) {
+                future = new UpgradeableFuture<>(() -> {
+                    for (UpgradeableFuture<?> uf : ufs) {
+                        uf.get(timeoutSeconds, TimeUnit.SECONDS);
+                    }
+                    for (CompletableFuture<?> cf : cfs) {
+                        cf.get(timeoutSeconds, TimeUnit.SECONDS);
+                    }
+                    return null;
+                });
+            } else {
+                future = CompletableFuture.allOf(cfs);
+            }
+
+            for (String attrName : entry.getValue()) {
+                resultsMap.put(attrName, future);
             }
         }
-        return attributeLookup != null ? attributeLookup : Collections.emptyMap();
+        return resultsMap;
     }
 
 

@@ -55,6 +55,17 @@ public class ExtrasController {
     @GetMapping("/async-defer")
     public String asyncDefer(AsyncModel model) {
         addDeferAttributes(model);
+
+        AsyncModel sub1 = model.addSubModel("subModel1");
+        sub1.addAttribute("subValue1", () -> {
+            Thread.sleep(1_000);
+            return "Sub-model value 1 done";
+        });
+        sub1.addAttribute("subValue2", () -> {
+            Thread.sleep(1_000);
+            return "Sub-model value 2 done";
+        });
+
         return "extras/async_defer";
     }
 

@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 
 import example.streaming.util.future.LazyWrappedFuture;
 
-public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>> {
+public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>> implements FutureContainer {
 
     private final List<UpgradeableFuture<T>> futures;
     private Collection<Future<T>> upgraded;
@@ -61,6 +61,11 @@ public class UpgradeableFutureCollection<T> extends AbstractCollection<Future<T>
         UpgradeableFuture<T> take();
 
         int size();
+    }
+
+    @Override
+    public void collectFutures(List<Future<?>> sink) {
+        sink.addAll(futures);
     }
 
 

@@ -1,17 +1,10 @@
 package example.streaming.config.mvc;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.springframework.beans.factory.InitializingBean;
@@ -66,7 +59,7 @@ public class AsyncModelConfig {
             Object model = mavContainer.getModel();
             if (model == mavContainer.getDefaultModel()) { // Not redirect
                 Assert.isInstanceOf(Model.class, model);
-                model = new UpgradeableFutureAsyncModel((Model) model);
+                model = new UpgradeableFutureAsyncModel((Model) model, DEFAULT_TIMEOUT_SECONDS);
             }
             return model;
         }
@@ -104,97 +97,6 @@ public class AsyncModelConfig {
             HandlerMethodArgumentResolver async = orderedResolvers.remove(asyncIdx.getAsInt());
             orderedResolvers.add(syncIdx.getAsInt(), async);
             handlerAdapter.setArgumentResolvers(orderedResolvers);
-        }
-    }
-
-
-    private static class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
-        private UpgradeableFutureAsyncModel(Model model) {
-            super(model);
-        }
-
-        @Override
-        public <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> callable) {
-            AsyncValue<T> future = new AsyncValueUpgradeableFuture<>(callable);
-            super.addAttribute(attributeName, future);
-            return future;
-        }
-
-        @Override
-        public <T> void addUnordered(String attributeName, Callable<T>[] callables) {
-            Collection<Future<T>> futures = new UpgradeableFutureCollection<>(callables, true);
-            super.addAttribute(attributeName, futures);
-        }
-
-        private static class AsyncValueUpgradeableFuture<T> extends UpgradeableFuture<T> implements AsyncValue<T> {
-            AsyncValueUpgradeableFuture(Callable<T> callable) {
-                super(callable);
-            }
-
-            // Allow other passed in callables calling this to catch their
-            // business logic exceptions as if there wasn't a future involved.
-            // For things like InterruptedExceptions and TimeoutException
-            // it won't be obvious they're there, and they can just propagate.
-            // Also ensure that there's always a timeout involved.
-            @Override
-            public T await() throws Exception {
-                try {
-                    return get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                } catch (ExecutionException e) {
-                    Throwable cause = e.getCause();
-                    if (cause instanceof Exception
-                            && !(cause instanceof InterruptedException)
-                            && !(cause instanceof CancellationException)) {
-                        throw (Exception) cause;
-                    }
-                    throw e;
-                }
-            }
-        }
-    }
-
-    private static class WrappingModel implements Model {
-        private final Model source;
-        WrappingModel(Model model) {
-            this.source = model;
-        }
-
-        @Override
-        public Model addAttribute(String name, Object value) {
-            source.addAttribute(name, value);
-            return this;
-        }
-        @Override
-        public Model addAttribute(Object value) {
-            source.addAttribute(value);
-            return this;
-        }
-        @Override
-        public Model addAllAttributes(Collection<?> values) {
-            source.addAllAttributes(values);
-            return this;
-        }
-        @Override
-        public Model addAllAttributes(Map<String, ?> attributes) {
-            source.addAllAttributes(attributes);
-            return this;
-        }
-        @Override
-        public Model mergeAttributes(Map<String, ?> attributes) {
-            source.mergeAttributes(attributes);
-            return this;
-        }
-        @Override
-        public boolean containsAttribute(String name) {
-            return source.containsAttribute(name);
-        }
-        @Override
-        public Object getAttribute(String name) {
-            return source.getAttribute(name);
-        }
-        @Override
-        public Map<String, Object> asMap() {
-            return source.asMap();
         }
     }
 

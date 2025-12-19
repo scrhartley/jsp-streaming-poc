@@ -59,6 +59,13 @@
                     </div>
                 </tag:asyncDefer>
             </li>
+
+            <li>
+                <tag:asyncDefer dependencies="subModel1" fallback="Loading sub-model">
+                    <div>${subModel1.subValue1}</div>
+                    <div>${subModel1.subValue2}</div>
+                </tag:asyncDefer>
+            </li>
         </ul>
 
         <div>Page finished!</div>
