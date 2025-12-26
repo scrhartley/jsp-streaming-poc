@@ -29,6 +29,9 @@ public class UpgradeableFuture<V> extends LazyTask<V> {
     public boolean cancel(boolean mayInterruptIfRunning) {
         boolean selfCancelled = super.cancel(mayInterruptIfRunning);
         if (runner != null) {
+            // This is really just here for completeness and if the main future
+            // is cancelled the runner should have nothing left to do and so may be done already.
+            // Either way this is just best-effort and not guaranteed.
             runner.cancel(mayInterruptIfRunning);
         }
         return selfCancelled;
