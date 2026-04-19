@@ -141,7 +141,7 @@ public class AsyncDeferTag extends SimpleTagSupport {
         }
 
         return new Iterator<>() {
-            final Iterator<Collection<String>> queue = getFuturesState(context).getCompletionQueue().iterator();
+            final Iterator<Collection<String>> queue = getFuturesState(context).completionIterator();
             final Set<String> allResolved = new HashSet<>();
             int expectedPendingCount = pendingItems.size();
 

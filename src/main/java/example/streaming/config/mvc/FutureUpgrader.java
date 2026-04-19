@@ -372,8 +372,8 @@ public class FutureUpgrader {
             return futureAttributeNames;
         }
 
-        public Iterable<Collection<String>> getCompletionQueue() {
-            return completionQueue;
+        public Iterator<Collection<String>> completionIterator() {
+            return completionQueue.iterator();
         }
 
 

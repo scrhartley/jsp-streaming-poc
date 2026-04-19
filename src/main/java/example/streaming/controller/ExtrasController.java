@@ -46,6 +46,17 @@ public class ExtrasController {
         return "extras/suspend";
     }
 
+    @GetMapping("/multi-suspend")
+    public String multiSuspend(AsyncModel model) {
+        for (int i = 1; i <= 2; i++) {
+            model.addAttribute("myData" + i, () -> {
+                Thread.sleep(2_500);
+                return "Work done";
+            });
+        }
+        return "extras/multi_suspend";
+    }
+
     @GetMapping("/defer")
     public String defer(AsyncModel model) {
         addDeferAttributes(model);

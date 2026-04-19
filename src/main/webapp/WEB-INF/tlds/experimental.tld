@@ -65,5 +65,35 @@
         <tag-class>example.streaming.config.jsp.tag.AsyncRenderDeferredTag</tag-class>
         <body-content>empty</body-content>
     </tag>
+    
+    
+    <tag>
+        <name>loader</name>
+        <tag-class>example.streaming.config.jsp.tag.MultiSuspend</tag-class>
+        <body-content>scriptless</body-content>
+    </tag>
+
+    <tag>
+        <name>loadslot</name>
+        <tag-class>example.streaming.config.jsp.tag.MultiSuspendSlot</tag-class>
+        <body-content>scriptless</body-content>
+        <attribute>
+            <name>fallback</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>fallbackFragment</name>
+            <required>false</required>
+            <fragment>true</fragment>
+        </attribute>
+        <attribute>
+            <name>dependencies</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>String</type>
+        </attribute>
+    </tag>
 
 </taglib>
