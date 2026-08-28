@@ -10,7 +10,6 @@ import java.util.Objects;
 import javax.servlet.jsp.JspContext;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.JspWriter;
-import javax.servlet.jsp.tagext.JspFragment;
 
 // This implementation uses Declarative Shadow DOM.
 // If the browser doesn't support it, then the content will appear without showing placeholders/fallbacks first.
@@ -79,16 +78,7 @@ class MultiSuspendDsdCompatibilityRenderer extends MultiSuspend.Renderer {
             out.write("\" hidden>"); // hidden in case no DSD support
 
             if (slot != null) { // Dynamic content placeholder
-                JspFragment fallbackFragment = slot.getFallbackFragment();
-                if (fallbackFragment != null) {
-                    fallbackFragment.invoke(out);
-                } else {
-                    String fallback = slot.getFallback();
-                    if (fallback == null) {
-                        fallback = "<div>Loading ...</div>";
-                    }
-                    out.write(fallback);
-                }
+                writeFallback(out, slot);
             } else { // The actual slot for static content.
                 out.write(staticIt.next());
             }

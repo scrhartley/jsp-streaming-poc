@@ -11,7 +11,6 @@ import java.util.Map;
 import javax.servlet.jsp.JspContext;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.JspWriter;
-import javax.servlet.jsp.tagext.JspFragment;
 
 // This implementation assumes the browser supports Declarative Shadow DOM.
 // Support exists since Web Platform Baseline 2024: https://webstatus.dev/features/declarative-shadow-dom
@@ -77,16 +76,7 @@ class MultiSuspendDsdRenderer extends MultiSuspend.Renderer {
             out.write(Integer.toString(it.nextIndex()));
             out.write("\">");
 
-            JspFragment fallbackFragment = slot.getFallbackFragment();
-            if (fallbackFragment != null) {
-                fallbackFragment.invoke(out);
-            } else {
-                String fallback = slot.getFallback();
-                if (fallback == null) {
-                    fallback = "<div>Loading ...</div>";
-                }
-                out.write(fallback);
-            }
+            writeFallback(out, slot);
 
             out.write("</div>");
         }

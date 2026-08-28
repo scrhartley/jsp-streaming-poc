@@ -2,6 +2,7 @@ package example.streaming.config.jsp.tag;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -60,6 +61,8 @@ public class MultiSuspend extends SimpleTagSupport {
     }
 
     static abstract class Renderer {
+        private static final String DEFAULT_FALLBACK = "<div>Loading ...</div>";
+
         protected final List<MultiSuspendSlot> slots;
         protected final List<String> staticContentSlots;
 
@@ -69,6 +72,17 @@ public class MultiSuspend extends SimpleTagSupport {
         }
 
         abstract void render(JspWriter out, JspContext context) throws JspException, IOException;
+
+
+        void writeFallback(Writer out, MultiSuspendSlot slot) throws JspException, IOException {
+            JspFragment fallbackFragment = slot.getFallbackFragment();
+            if (fallbackFragment != null) {
+                fallbackFragment.invoke(out);
+            } else {
+                String fallback = slot.getFallback();
+                out.write((fallback != null) ? fallback : DEFAULT_FALLBACK);
+            }
+        }
     }
 
 }
