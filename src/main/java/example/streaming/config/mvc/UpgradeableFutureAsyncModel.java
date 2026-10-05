@@ -14,7 +14,7 @@ import org.springframework.ui.Model;
 
 import example.streaming.AsyncModel;
 
-class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
+class UpgradeableFutureAsyncModel extends WrappingModel<AsyncModel> implements AsyncModel {
     private final int timeoutSeconds;
 
     UpgradeableFutureAsyncModel(Model model, int timeoutSeconds) {
@@ -40,6 +40,11 @@ class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
         AsyncModel subModel = new SubModel();
         super.addAttribute(attributeName, subModel);
         return subModel;
+    }
+
+    @Override
+    protected AsyncModel getThis() {
+        return this;
     }
 
 
@@ -70,7 +75,12 @@ class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
     }
 
     // Exists so that sub-models implement Map and so can be directly accessed in the template
-    private class SubModel extends ExtendedModelMap implements AsyncModel, FutureContainer {
+    private class SubModel extends WrappingModel<AsyncModel> implements AsyncModel, FutureContainer {
+
+        SubModel() {
+            super(new ExtendedModelMap());
+        }
+
         @Override
         public <T> AsyncValue<T> addAttribute(String attributeName, Callable<T> callable) {
             AsyncValue<T> future = new AsyncValueUpgradeableFuture<>(callable);
@@ -89,10 +99,15 @@ class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
             throw new UnsupportedOperationException("Nested sub-models are not allowed");
         }
 
+        @Override
+        protected AsyncModel getThis() {
+            return this;
+        }
+
 
         @Override
         public void collectFutures(List<Future<?>> sink) {
-            for (Object value : values()) {
+            for (Object value : asMap().values()) {
                 if (value instanceof Future) {
                     sink.add((Future<?>) value);
                 } else if (value instanceof FutureContainer) {
@@ -105,36 +120,36 @@ class UpgradeableFutureAsyncModel extends WrappingModel implements AsyncModel {
 }
 
 
-class WrappingModel implements Model {
+abstract class WrappingModel<W extends Model> implements Model {
     private final Model source;
     WrappingModel(Model model) {
         this.source = model;
     }
 
     @Override
-    public Model addAttribute(String name, Object value) {
+    public W addAttribute(String name, Object value) {
         source.addAttribute(name, value);
-        return this;
+        return getThis();
     }
     @Override
-    public Model addAttribute(Object value) {
+    public W addAttribute(Object value) {
         source.addAttribute(value);
-        return this;
+        return getThis();
     }
     @Override
-    public Model addAllAttributes(Collection<?> values) {
+    public W addAllAttributes(Collection<?> values) {
         source.addAllAttributes(values);
-        return this;
+        return getThis();
     }
     @Override
-    public Model addAllAttributes(Map<String, ?> attributes) {
+    public W addAllAttributes(Map<String, ?> attributes) {
         source.addAllAttributes(attributes);
-        return this;
+        return getThis();
     }
     @Override
-    public Model mergeAttributes(Map<String, ?> attributes) {
+    public W mergeAttributes(Map<String, ?> attributes) {
         source.mergeAttributes(attributes);
-        return this;
+        return getThis();
     }
     @Override
     public boolean containsAttribute(String name) {
@@ -148,4 +163,6 @@ class WrappingModel implements Model {
     public Map<String, Object> asMap() {
         return source.asMap();
     }
+
+    protected abstract W getThis();
 }
